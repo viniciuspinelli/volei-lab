@@ -13,7 +13,8 @@ function atualizarLista() {
       confirmados.forEach(c => {
         const item = document.createElement('div');
         item.className = 'list-group-item d-flex justify-content-between align-items-start';
-        item.innerHTML = `<div><strong>${c.nome}</strong><div class="small text-muted">${c.tipo}${c.genero ? ' • ' + c.genero : ''}</div></div>`;
+        const generoIcon = c.genero === 'feminino' ? '<i class="bi bi-gender-female text-danger me-1"></i>' : '<i class="bi bi-gender-male text-primary me-1"></i>';
+        item.innerHTML = `<div class="d-flex align-items-center"><i class="bi bi-person-fill me-2"></i><div><strong>${c.nome}</strong><div class="small text-muted">${c.tipo} ${c.genero ? '• ' + generoIcon + ' ' + c.genero : ''}</div></div></div>`;
         container.appendChild(item);
       });
     });

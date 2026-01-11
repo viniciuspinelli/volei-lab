@@ -17,12 +17,20 @@ function atualizarLista() {
 
       const ul = document.getElementById('listaConfirmados');
       ul.innerHTML = '';
-      confirmed.forEach(c => {
-        const li = document.createElement('li');
-        li.textContent = `${c.nome} (${c.tipo})`;
-        li.style.color = '#ffffff';
-        ul.appendChild(li);
-      });
+        confirmed.forEach(c => {
+          const li = document.createElement('li');
+          li.className = 'd-flex align-items-center justify-content-between';
+          const span = document.createElement('span');
+          span.textContent = `${c.nome} (${c.tipo})`;
+          span.style.color = '#ffffff';
+          const btn = document.createElement('button');
+          btn.className = 'btn btn-sm btn-outline-light ms-2';
+          btn.textContent = 'Remover';
+          btn.addEventListener('click', () => removerConfirmado(c.id));
+          li.appendChild(span);
+          li.appendChild(btn);
+          ul.appendChild(li);
+        });
 
       const waitEl = document.getElementById('resultadoSorteio');
       // use resultadoSorteio area for waitlist display when not showing teams
@@ -33,6 +41,26 @@ function atualizarLista() {
         waitHtml += '</ol></div>';
       }
       waitEl.innerHTML = waitHtml;
+    });
+}
+
+function removerConfirmado(id) {
+  if (!confirm('Remover esta pessoa da lista?')) return;
+  fetch(`/confirmados/${id}`, { method: 'DELETE' })
+    .then(res => res.json())
+    .then(data => {
+      if (data.sucesso) {
+        document.getElementById('mensagem').textContent = 'Confirmado removido.';
+        document.getElementById('mensagem').style.color = '#27ae60';
+        atualizarLista();
+      } else if (data.erro) {
+        document.getElementById('mensagem').textContent = data.erro;
+        document.getElementById('mensagem').style.color = '#c0392b';
+      }
+    })
+    .catch(() => {
+      document.getElementById('mensagem').textContent = 'Erro ao remover.';
+      document.getElementById('mensagem').style.color = '#c0392b';
     });
 }
 

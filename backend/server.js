@@ -84,7 +84,7 @@ app.post('/confirmar', async (req, res) => {
 // Rota para listar confirmados
 app.get('/confirmados', async (req, res) => {
   try {
-    const result = await pool.query('SELECT nome, tipo, genero, data FROM confirmados ORDER BY data ASC');
+    const result = await pool.query('SELECT id, nome, tipo, genero, data FROM confirmados ORDER BY data ASC');
     const rows = result.rows;
     const confirmed = rows.slice(0, 24);
     const waitlist = rows.slice(24);
@@ -92,6 +92,21 @@ app.get('/confirmados', async (req, res) => {
   } catch (err) {
     console.error('Erro /confirmados:', err);
     res.status(500).json({ erro: 'Erro ao buscar confirmados.' });
+  }
+});
+
+// Rota para remover um confirmado por id
+app.delete('/confirmados/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const del = await pool.query('DELETE FROM confirmados WHERE id = $1', [id]);
+    if (del.rowCount === 0) {
+      return res.status(404).json({ erro: 'Confirmado não encontrado.' });
+    }
+    res.json({ sucesso: true });
+  } catch (err) {
+    console.error('Erro DELETE /confirmados/:id', err);
+    res.status(500).json({ erro: 'Erro ao remover confirmado.' });
   }
 });
 

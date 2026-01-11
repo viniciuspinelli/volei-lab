@@ -11,8 +11,12 @@ COPY backend/server.js ./
 COPY backend/confirmados.json ./
 COPY backend/public ./public
 
+
 # Instala dependências
 RUN npm install --production
+
+# Variáveis de ambiente para o PostgreSQL (Render já injeta DATABASE_URL)
+ENV NODE_ENV=production
 
 # Expõe a porta do serviço
 EXPOSE 3001

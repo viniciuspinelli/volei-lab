@@ -3,15 +3,36 @@ const API_URL = '';
 function atualizarLista() {
   fetch(`/confirmados`)
     .then(res => res.json())
-    .then(confirmados => {
+    .then(data => {
+      // data may be { confirmed, waitlist } or an array (legacy)
+      let confirmed = [];
+      let waitlist = [];
+      if (Array.isArray(data)) {
+        confirmed = data.slice(0, 24);
+        waitlist = data.slice(24);
+      } else {
+        confirmed = data.confirmed || [];
+        waitlist = data.waitlist || [];
+      }
+
       const ul = document.getElementById('listaConfirmados');
       ul.innerHTML = '';
-      confirmados.forEach(c => {
-          const li = document.createElement('li');
-          li.textContent = `${c.nome} (${c.tipo})`;
-          li.style.color = '#ffffff';
-          ul.appendChild(li);
+      confirmed.forEach(c => {
+        const li = document.createElement('li');
+        li.textContent = `${c.nome} (${c.tipo})`;
+        li.style.color = '#ffffff';
+        ul.appendChild(li);
       });
+
+      const waitEl = document.getElementById('resultadoSorteio');
+      // use resultadoSorteio area for waitlist display when not showing teams
+      let waitHtml = '';
+      if (waitlist.length > 0) {
+        waitHtml += '<div class="mt-3"><strong>Lista de Espera</strong><ol class="ms-3 mt-2" style="color:#fff">';
+        waitlist.forEach(w => { waitHtml += `<li>${w.nome} (${w.tipo})</li>` });
+        waitHtml += '</ol></div>';
+      }
+      waitEl.innerHTML = waitHtml;
     });
 }
 

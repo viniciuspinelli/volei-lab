@@ -4,24 +4,37 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Confirmação Vôlei Sexta</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: Arial, sans-serif; background: #0b2540; margin: 0; padding: 0; color: #fff }
-    .container { max-width: 420px; margin: 24px auto; background: rgba(255,255,255,0.04); padding: 20px; border-radius: 10px; box-shadow: 0 2px 12px rgba(0,0,0,0.5); }
-    h1 { text-align: center; color: #ff7a18; margin-bottom: 8px }
-    form { display: flex; flex-direction: column; gap: 12px; }
-    input, select, button { padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); color: #fff }
-    /* Force dark background for native dropdowns/options on many platforms */
-    select { background-color: #0b2540; color: #fff }
-    select option { background-color: #0b2540; color: #fff }
-    button { background: #ff7a18; color: #fff; border: none; cursor: pointer; font-weight: bold; }
-    button:hover { background: #c25512; }
-    .lista { margin-top: 20px; }
-    .mensagem { text-align: center; margin-bottom: 12px; color: #cdeaff; }
-    ul { padding-left: 18px; margin: 0 }
-    #listaConfirmados li { color: #ffffff; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.03) }
-    #resultadoSorteio { color: #fff }
-    /* estilo para identificar avulsos */
-    #listaConfirmados li.tipo-avulso { background: rgba(255,213,79,0.04); border-left: 4px solid rgba(255,213,79,0.15); }
+    :root{--bg:#071226;--card:rgba(255,255,255,0.04);--muted:#9fb3c8;--accent1:#7dd3fc;--accent2:#a78bfa;--avulso:#ffd54f}
+    *{box-sizing:border-box}
+    body{font-family:Inter,system-ui,Arial,sans-serif;background:linear-gradient(180deg,#020617 0%, #071226 50%);color:#e7f3ff;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px}
+    .container{width:100%;max-width:720px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));backdrop-filter:blur(6px);border-radius:12px;padding:24px;box-shadow:0 10px 30px rgba(2,6,23,0.7);border:1px solid rgba(255,255,255,0.04)}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    .logo{width:46px;height:46px;border-radius:10px;background:linear-gradient(135deg,var(--accent1),var(--accent2));display:flex;align-items:center;justify-content:center;color:#012; font-weight:700}
+    h1{font-size:20px;margin:0;color:linear-gradient(90deg,var(--accent1),var(--accent2));letter-spacing:0.4px}
+    .subtitle{color:var(--muted);font-size:13px;margin-top:4px}
+    form{display:grid;grid-template-columns:1fr 140px;gap:12px;margin-top:10px}
+    .full{grid-column:1/-1}
+    input,select,button{height:44px;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    select{appearance:none;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);padding-right:28px}
+    .controls{display:flex;gap:8px}
+    button.primary{background:linear-gradient(90deg,var(--accent1),var(--accent2));color:#031022;border:none;font-weight:600}
+    button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
+    .lista{margin-top:20px;display:flex;gap:18px}
+    .col{flex:1;min-width:220px}
+    .card{background:transparent;border-radius:8px;padding:12px;border:1px solid rgba(255,255,255,0.03)}
+    h2{margin:0 0 8px 0;font-size:16px}
+    .mensagem{text-align:center;margin-bottom:8px;color:var(--muted)}
+    ul{list-style:none;padding:0;margin:0}
+    #listaConfirmados li{display:flex;align-items:center;justify-content:space-between;padding:10px;border-bottom:1px solid rgba(255,255,255,0.02)}
+    #listaConfirmados li span.name{color:#eaf6ff}
+    #listaConfirmados li span.pos{color:var(--muted);margin-right:10px}
+    #listaConfirmados li.tipo-avulso{background:linear-gradient(90deg, rgba(255,213,79,0.04), transparent);border-left:4px solid rgba(255,213,79,0.12)}
+    #listaConfirmados li.tipo-avulso span.name{color:var(--avulso)}
+    .small-btn{padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--muted);cursor:pointer}
+    #resultadoSorteio{color:#eaf6ff;margin-top:10px}
+    @media(max-width:560px){form{grid-template-columns:1fr;}.container{padding:16px}}
   </style>
 </head>
 <body>

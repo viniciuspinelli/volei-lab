@@ -4,18 +4,13 @@ function atualizarLista() {
   fetch(`/confirmados`)
     .then(res => res.json())
     .then(confirmados => {
-      const container = document.getElementById('listaConfirmados');
-      container.innerHTML = '';
-      if (confirmados.length === 0) {
-        container.innerHTML = '<div class="text-muted">Nenhuma confirmação ainda.</div>';
-        return;
-      }
+      const ul = document.getElementById('listaConfirmados');
+      ul.innerHTML = '';
       confirmados.forEach(c => {
-        const item = document.createElement('div');
-        item.className = 'list-group-item d-flex justify-content-between align-items-start';
-        const generoIcon = c.genero === 'feminino' ? '<i class="bi bi-gender-female text-danger me-1"></i>' : '<i class="bi bi-gender-male text-primary me-1"></i>';
-        item.innerHTML = `<div class="d-flex align-items-center"><i class="bi bi-person-fill me-2"></i><div><strong>${c.nome}</strong><div class="small text-muted">${c.tipo} ${c.genero ? '• ' + generoIcon + ' ' + c.genero : ''}</div></div></div>`;
-        container.appendChild(item);
+          const li = document.createElement('li');
+          li.textContent = `${c.nome} (${c.tipo})`;
+          li.style.color = '#ffffff';
+          ul.appendChild(li);
       });
     });
 }

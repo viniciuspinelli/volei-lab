@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirmação Vôlei Sexta</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 0; }
+    .container { max-width: 400px; margin: 40px auto; background: #fff; padding: 24px; border-radius: 8px; box-shadow: 0 2px 8px #0001; }
+    h1 { text-align: center; color: #2c3e50; }
+    form { display: flex; flex-direction: column; gap: 12px; }
+    input, select, button { padding: 10px; border-radius: 4px; border: 1px solid #ccc; }
+    button { background: #27ae60; color: #fff; border: none; cursor: pointer; font-weight: bold; }
+    button:hover { background: #219150; }
+    .lista { margin-top: 32px; }
+    .mensagem { text-align: center; margin-bottom: 12px; color: #27ae60; }
+    ul { padding-left: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Vôlei Sexta-feira</h1>
+    <div class="mensagem" id="mensagem"></div>
+    <form id="formConfirma">
+      <input type="text" id="nome" placeholder="Seu nome" required />
+      <select id="tipo" required>
+        <option value="">Selecione o tipo</option>
+        <option value="mensalista">Mensalista</option>
+        <option value="avulso">Avulso</option>
+      </select>
+      <button type="submit">Confirmar Presença</button>
+    </form>
+    <div class="lista">
+      <h2>Confirmados</h2>
+      <ul id="listaConfirmados"></ul>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

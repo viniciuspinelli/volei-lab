@@ -20,9 +20,10 @@ function atualizarLista() {
       confirmed.forEach((c, i) => {
         const li = document.createElement('li');
         li.className = 'd-flex align-items-center justify-content-between';
+        if (c.tipo === 'avulso') li.classList.add('tipo-avulso');
         const span = document.createElement('span');
         span.textContent = `${i + 1}. ${c.nome} (${c.tipo})`;
-        span.style.color = '#ffffff';
+        span.style.color = c.tipo === 'avulso' ? '#ffd54f' : '#ffffff';
         const btn = document.createElement('button');
         btn.className = 'btn btn-sm btn-outline-light ms-2';
         btn.textContent = 'Remover';

@@ -4,12 +4,17 @@ function atualizarLista() {
   fetch(`/confirmados`)
     .then(res => res.json())
     .then(confirmados => {
-      const ul = document.getElementById('listaConfirmados');
-      ul.innerHTML = '';
+      const container = document.getElementById('listaConfirmados');
+      container.innerHTML = '';
+      if (confirmados.length === 0) {
+        container.innerHTML = '<div class="text-muted">Nenhuma confirmação ainda.</div>';
+        return;
+      }
       confirmados.forEach(c => {
-        const li = document.createElement('li');
-        li.textContent = `${c.nome} (${c.tipo})`;
-        ul.appendChild(li);
+        const item = document.createElement('div');
+        item.className = 'list-group-item d-flex justify-content-between align-items-start';
+        item.innerHTML = `<div><strong>${c.nome}</strong><div class="small text-muted">${c.tipo}${c.genero ? ' • ' + c.genero : ''}</div></div>`;
+        container.appendChild(item);
       });
     });
 }

@@ -1,11 +1,16 @@
 const express = require('express');
 const fs = require('fs');
+
 const cors = require('cors');
+const path = require('path');
 const app = express();
 const PORT = 3001;
 
 app.use(cors());
 app.use(express.json());
+
+// Servir arquivos estáticos do frontend
+app.use(express.static(path.join(__dirname, 'public')));
 
 const DATA_FILE = './confirmados.json';
 

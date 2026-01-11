@@ -4,10 +4,12 @@ FROM node:18-alpine
 # Diretório de trabalho
 WORKDIR /app
 
+
 # Copia os arquivos do backend
 COPY backend/package*.json ./
 COPY backend/server.js ./
 COPY backend/confirmados.json ./
+COPY backend/public ./public
 
 # Instala dependências
 RUN npm install --production

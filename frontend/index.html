@@ -23,6 +23,11 @@
     <div class="mensagem" id="mensagem"></div>
     <form id="formConfirma">
       <input type="text" id="nome" placeholder="Seu nome" required />
+      <select id="genero" required>
+        <option value="">Selecione o gênero</option>
+        <option value="masculino">Masculino</option>
+        <option value="feminino">Feminino</option>
+      </select>
       <select id="tipo" required>
         <option value="">Selecione o tipo</option>
         <option value="mensalista">Mensalista</option>
@@ -32,7 +37,10 @@
     </form>
     <div class="lista">
       <h2>Confirmados</h2>
+      <button id="limparConfirmados" style="background:#c0392b; color:#fff; margin-bottom:10px;">Limpar Lista</button>
       <ul id="listaConfirmados"></ul>
+      <button id="sortearTimes" style="background:#2980b9; color:#fff; margin-top:16px;">Sortear Times</button>
+      <div id="resultadoSorteio" style="margin-top:20px;"></div>
     </div>
   </div>
   <script src="app.js"></script>

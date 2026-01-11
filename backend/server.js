@@ -1,3 +1,12 @@
+// Rota para limpar todos os confirmados
+app.delete('/confirmados', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM confirmados');
+    res.json({ sucesso: true });
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao limpar confirmados.' });
+  }
+});
 const express = require('express');
 const fs = require('fs');
 

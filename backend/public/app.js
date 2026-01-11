@@ -40,5 +40,25 @@ document.getElementById('formConfirma').addEventListener('submit', function(e) {
     });
 });
 
+
+// Botão para limpar confirmados
+document.getElementById('limparConfirmados').addEventListener('click', function(e) {
+  e.preventDefault();
+  if (confirm('Tem certeza que deseja limpar todos os confirmados?')) {
+    fetch('/confirmados', { method: 'DELETE' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.sucesso) {
+          document.getElementById('mensagem').textContent = 'Lista limpa!';
+          document.getElementById('mensagem').style.color = '#27ae60';
+          atualizarLista();
+        } else {
+          document.getElementById('mensagem').textContent = 'Erro ao limpar lista.';
+          document.getElementById('mensagem').style.color = '#c0392b';
+        }
+      });
+  }
+});
+
 // Inicializa lista ao carregar
 atualizarLista();

@@ -105,20 +105,28 @@ function sortearTimes(confirmados) {
   }
   shuffle(homens);
   shuffle(mulheres);
-  const combined = [];
-  while (homens.length || mulheres.length) {
-    if (homens.length >= mulheres.length) {
-      if (homens.length) combined.push(homens.pop());
-      if (mulheres.length) combined.push(mulheres.pop());
-    } else {
-      if (mulheres.length) combined.push(mulheres.pop());
-      if (homens.length) combined.push(homens.pop());
-    }
-  }
+
+  // 4 times de 6
   const times = [[], [], [], []];
-  for (let i = 0; i < combined.length; i++) {
-    times[i % 4].push(combined[i]);
+  
+  // Distribui mulheres primeiro - uma por time (garante que cada time tenha mulher)
+  for (let i = 0; i < Math.min(4, mulheres.length); i++) {
+    times[i].push(mulheres[i]);
   }
+  
+  // Distribui mulheres restantes entre os times
+  for (let i = 4; i < mulheres.length; i++) {
+    const idx = i % 4;
+    times[idx].push(mulheres[i]);
+  }
+  
+  // Distribui homens entre os times
+  for (let i = 0; i < homens.length; i++) {
+    const idx = i % 4;
+    times[idx].push(homens[i]);
+  }
+
+  // Preenche vagas livres até 6 por time
   for (let i = 0; i < 4; i++) {
     while (times[i].length < 6) {
       times[i].push({ nome: 'Vaga Livre', genero: '', tipo: '' });

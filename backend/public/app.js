@@ -99,8 +99,6 @@ function sortearTimes(confirmados) {
   
   const totalPessoas = confirmados.length;
   const NUM_TIMES = 4;
-  const pessoasPorTime = Math.floor(totalPessoas / NUM_TIMES);
-  const timesComUmaExtraPessoa = totalPessoas % NUM_TIMES;
   
   const homens = confirmados.filter(c => c.genero === 'masculino').slice();
   const mulheres = confirmados.filter(c => c.genero === 'feminino').slice();
@@ -134,10 +132,12 @@ function sortearTimes(confirmados) {
     times[idx].push(homens[i]);
   }
 
-  // Preenche vagas livres apenas se não houver pessoas suficientes
+  // Encontra o tamanho máximo entre os times
+  const tamanhoMaximo = Math.max(...times.map(t => t.length));
+  
+  // Preenche todos os times até igualar o tamanho máximo com "Vaga Livre"
   for (let i = 0; i < NUM_TIMES; i++) {
-    const tamanhoEsperado = pessoasPorTime + (i < timesComUmaExtraPessoa ? 1 : 0);
-    while (times[i].length < tamanhoEsperado) {
+    while (times[i].length < tamanhoMaximo) {
       times[i].push({ nome: 'Vaga Livre', genero: '', tipo: '' });
     }
   }

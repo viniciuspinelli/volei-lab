@@ -680,7 +680,10 @@
           <p style="color: var(--text-muted); margin-bottom: 16px; font-size: 14px;">
             O sorteio distribui automaticamente os jogadores em 4 times, equilibrando homens e mulheres.
           </p>
-          <button class="btn btn-primary btn-block" id="sortearTimes">Sortear Times</button>
+          <div style="display: flex; gap: 12px;">
+            <button class="btn btn-primary" style="flex:1" id="sortearTimes">Sortear Times</button>
+            <button class="btn btn-danger" id="limparSorteio" style="display:none;">🗑️ Limpar</button>
+          </div>
         </div>
         
         <div id="resultadoSorteio"></div>
@@ -937,8 +940,15 @@
           html += '</div>';
           
           document.getElementById('resultadoSorteio').innerHTML = html;
+          document.getElementById('limparSorteio').style.display = 'inline-block';
           window.ultimoSorteio = times;
         });
+    });
+    
+    document.getElementById('limparSorteio').addEventListener('click', function() {
+      document.getElementById('resultadoSorteio').innerHTML = '';
+      this.style.display = 'none';
+      window.ultimoSorteio = null;
     });
     
     function compartilharWhatsApp() {

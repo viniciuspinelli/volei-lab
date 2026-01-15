@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🧪 Lab UI - Pagou-Jogou Volei</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ========================================
+       🧪 ÁREA DE TESTES - MODIFIQUE À VONTADE
+       ======================================== */
+    
+    :root {
+      /* Cores principais - experimente mudar! */
+      --bg-primary: #071226;
+      --bg-secondary: #0a1f3a;
+      --text-primary: #eaf6ff;
+      --text-muted: #9fb3c8;
+      --accent-green: #34d399;
+      --accent-green-dark: #10b981;
+      --accent-yellow: #ffd54f;
+      --accent-blue: #7dd3fc;
+      --accent-purple: #a78bfa;
+      --danger: #ef4444;
+      
+      /* Espaçamentos */
+      --spacing-xs: 4px;
+      --spacing-sm: 8px;
+      --spacing-md: 16px;
+      --spacing-lg: 24px;
+      --spacing-xl: 32px;
+      
+      /* Bordas */
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 12px;
+      --radius-full: 9999px;
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: Inter, system-ui, Arial, sans-serif;
+      background: linear-gradient(180deg, #020617 0%, var(--bg-primary) 50%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--spacing-lg);
+    }
+    
+    .container {
+      width: 100%;
+      max-width: 520px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      backdrop-filter: blur(6px);
+      border-radius: var(--radius-lg);
+      padding: 20px 20px 28px;
+      box-shadow: 0 8px 24px rgba(2,6,23,0.7);
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+    
+    /* Header */
+    header {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--spacing-md);
+      margin-bottom: 20px;
+      position: relative;
+    }
+    
+    .logo-brand {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      font-size: 20px;
+    }
+    
+    .logo-brand .part1 { color: var(--text-primary); }
+    .logo-brand .part2 { color: var(--accent-green); }
+    .logo-brand .part3 { color: var(--text-primary); font-size: 12px; font-weight: 600; letter-spacing: 1px; }
+    
+    .lab-badge {
+      position: absolute;
+      top: 0;
+      right: 0;
+      padding: 6px 12px;
+      background: rgba(251, 191, 36, 0.2);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      border-radius: var(--radius-sm);
+      color: #fbbf24;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    /* Navegação */
+    .nav-links {
+      display: flex;
+      gap: var(--spacing-sm);
+      margin-top: var(--spacing-sm);
+    }
+    
+    .nav-link {
+      padding: 8px 12px;
+      background: rgba(52, 211, 153, 0.2);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      border-radius: var(--radius-sm);
+      color: var(--accent-green);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    
+    .nav-link:hover {
+      background: rgba(52, 211, 153, 0.3);
+    }
+    
+    .nav-link.secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+    }
+    
+    .nav-link.secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    /* Mensagens */
+    .mensagem {
+      text-align: center;
+      margin-bottom: var(--spacing-sm);
+      color: var(--text-muted);
+      min-height: 20px;
+    }
+    
+    .mensagem.sucesso { color: var(--accent-green); }
+    .mensagem.erro { color: var(--danger); }
+    
+    /* Formulário */
+    form {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--spacing-sm);
+      margin-top: var(--spacing-sm);
+    }
+    
+    input, select {
+      height: 48px;
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255,255,255,0.04);
+      background: transparent;
+      color: inherit;
+      font-size: 15px;
+      transition: border-color 0.3s;
+    }
+    
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent-green);
+    }
+    
+    select {
+      appearance: none;
+      background: linear-gradient(180deg, rgba(255,255,255,0.01), transparent);
+      padding-right: 28px;
+    }
+    
+    select option {
+      background: #0b2540;
+      color: var(--text-primary);
+      padding: var(--spacing-sm);
+    }
+    
+    /* Botões */
+    .btn {
+      height: 48px;
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      border: none;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(90deg, var(--accent-green), var(--accent-green-dark));
+      color: #031022;
+    }
+    
+    .btn-primary:hover {
+      filter: brightness(1.1);
+    }
+    
+    .btn-secondary {
+      background: rgba(41, 128, 185, 0.2);
+      border: 1px solid rgba(41, 128, 185, 0.3);
+      color: #3498db;
+    }
+    
+    .btn-secondary:hover {
+      background: rgba(41, 128, 185, 0.3);
+    }
+    
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: var(--danger);
+    }
+    
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.3);
+    }
+    
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.04);
+      color: var(--text-muted);
+    }
+    
+    .btn-ghost:hover {
+      background: rgba(255,255,255,0.05);
+    }
+    
+    /* Lista */
+    .lista {
+      margin-top: var(--spacing-lg);
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-md);
+    }
+    
+    h2 {
+      margin: 0 0 var(--spacing-sm) 0;
+      font-size: 16px;
+      color: var(--text-primary);
+    }
+    
+    ul {
+      list-style: none;
+    }
+    
+    .lista-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.02);
+      font-size: 15px;
+    }
+    
+    .lista-item.avulso {
+      background: linear-gradient(90deg, rgba(255,213,79,0.04), transparent);
+      border-left: 4px solid rgba(255,213,79,0.12);
+    }
+    
+    .lista-item .nome {
+      color: var(--text-primary);
+    }
+    
+    .lista-item.avulso .nome {
+      color: var(--accent-yellow);
+    }
+    
+    .btn-remove {
+      padding: 6px 10px;
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: var(--radius-sm);
+      color: var(--danger);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .btn-remove:hover {
+      background: rgba(239, 68, 68, 0.3);
+    }
+    
+    /* Ações */
+    .acoes {
+      display: flex;
+      gap: var(--spacing-sm);
+      flex-wrap: wrap;
+      margin-bottom: var(--spacing-md);
+    }
+    
+    /* Resultado Sorteio */
+    .resultado {
+      margin-top: var(--spacing-md);
+      background: rgba(0,0,0,0.3);
+      padding: var(--spacing-md);
+      border-radius: var(--radius-md);
+    }
+    
+    .resultado h3 {
+      color: var(--accent-green);
+      margin-bottom: var(--spacing-sm);
+      font-size: 14px;
+    }
+    
+    .resultado ul {
+      padding-left: 20px;
+      list-style: decimal;
+    }
+    
+    .resultado li {
+      color: var(--text-primary);
+      padding: 4px 0;
+    }
+    
+    /* Cards de Time */
+    .times-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--spacing-sm);
+      margin-top: var(--spacing-md);
+    }
+    
+    .time-card {
+      background: rgba(0,0,0,0.2);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-md);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    
+    .time-card h4 {
+      color: var(--accent-green);
+      font-size: 14px;
+      margin-bottom: var(--spacing-sm);
+    }
+    
+    .time-card ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .time-card li {
+      font-size: 13px;
+      padding: 4px 0;
+      color: var(--text-muted);
+    }
+    
+    /* Componentes extras para testar */
+    .divider {
+      height: 1px;
+      background: rgba(255,255,255,0.05);
+      margin: var(--spacing-md) 0;
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 600;
+    }
+    
+    .badge-mensalista {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+    }
+    
+    .badge-avulso {
+      background: rgba(255, 213, 79, 0.2);
+      color: var(--accent-yellow);
+    }
+    
+    .badge-masculino {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+    }
+    
+    .badge-feminino {
+      background: rgba(236, 100, 155, 0.15);
+      color: #ff6b9d;
+    }
+    
+    /* Tooltip */
+    [data-tooltip] {
+      position: relative;
+    }
+    
+    [data-tooltip]:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 10px;
+      background: rgba(0,0,0,0.9);
+      color: #fff;
+      font-size: 12px;
+      border-radius: var(--radius-sm);
+      white-space: nowrap;
+      margin-bottom: 6px;
+    }
+    
+    /* Responsivo */
+    @media (max-width: 560px) {
+      .container { padding: 14px; }
+      .times-grid { grid-template-columns: 1fr; }
+    }
+    
+    /* ========================================
+       FIM DA ÁREA DE TESTES
+       ======================================== */
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo-brand">
+        <span class="part1">PAGOU</span>
+        <span class="part2">JOGOU</span>
+        <span class="part3">VOLEI</span>
+      </div>
+      <span class="lab-badge">🧪 LAB UI</span>
+      
+      <nav class="nav-links">
+        <a href="index.html" class="nav-link secondary">← Voltar</a>
+        <a href="estatisticas.html" class="nav-link">📊 Estatísticas</a>
+      </nav>
+    </header>
+    
+    <div class="mensagem" id="mensagem"></div>
+    
+    <form id="formConfirma">
+      <input type="text" id="nome" placeholder="Seu nome" required />
+      <select id="genero" required>
+        <option value="">Selecione o gênero</option>
+        <option value="masculino">Masculino</option>
+        <option value="feminino">Feminino</option>
+      </select>
+      <select id="tipo" required>
+        <option value="">Selecione o tipo</option>
+        <option value="mensalista">Mensalista</option>
+        <option value="avulso">Avulso</option>
+      </select>
+      <button class="btn btn-primary" type="submit">Confirmar Presença</button>
+    </form>
+    
+    <div class="lista">
+      <h2>Confirmados <span class="badge badge-mensalista">14</span></h2>
+      
+      <div class="acoes">
+        <button class="btn btn-secondary" id="sortearTimes">🎲 Sortear Times</button>
+        <button class="btn btn-danger" id="limparConfirmados">🗑️ Limpar</button>
+      </div>
+      
+      <ul id="listaConfirmados">
+        <!-- Exemplos estáticos para visualização -->
+        <li class="lista-item">
+          <span class="nome">1. João Silva <span class="badge badge-mensalista">mensalista</span> <span class="badge badge-masculino">M</span></span>
+          <button class="btn-remove" data-tooltip="Remover João Silva">✕</button>
+        </li>
+        <li class="lista-item avulso">
+          <span class="nome">2. Maria Santos <span class="badge badge-avulso">avulso</span> <span class="badge badge-feminino">F</span></span>
+          <button class="btn-remove">✕</button>
+        </li>
+        <li class="lista-item">
+          <span class="nome">3. Pedro Costa <span class="badge badge-mensalista">mensalista</span> <span class="badge badge-masculino">M</span></span>
+          <button class="btn-remove">✕</button>
+        </li>
+        <li class="lista-item">
+          <span class="nome">4. Ana Oliveira <span class="badge badge-mensalista">mensalista</span> <span class="badge badge-feminino">F</span></span>
+          <button class="btn-remove">✕</button>
+        </li>
+      </ul>
+      
+      <div class="divider"></div>
+      
+      <!-- Exemplo de resultado de sorteio -->
+      <h2>Resultado do Sorteio</h2>
+      <div class="times-grid">
+        <div class="time-card">
+          <h4>🏐 Time 1</h4>
+          <ul>
+            <li>João Silva (M)</li>
+            <li>Maria Santos (F)</li>
+            <li>Carlos Lima (M)</li>
+          </ul>
+        </div>
+        <div class="time-card">
+          <h4>🏐 Time 2</h4>
+          <ul>
+            <li>Pedro Costa (M)</li>
+            <li>Ana Oliveira (F)</li>
+            <li>Lucas Souza (M)</li>
+          </ul>
+        </div>
+        <div class="time-card">
+          <h4>🏐 Time 3</h4>
+          <ul>
+            <li>Rafael Dias (M)</li>
+            <li>Julia Ferreira (F)</li>
+            <li>Marcos Alves (M)</li>
+          </ul>
+        </div>
+        <div class="time-card">
+          <h4>🏐 Time 4</h4>
+          <ul>
+            <li>Bruno Rocha (M)</li>
+            <li>Camila Nunes (F)</li>
+            <li>Vaga Livre</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Scripts básicos para interação no lab
+    document.getElementById('formConfirma').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const mensagem = document.getElementById('mensagem');
+      mensagem.textContent = '✅ Presença confirmada! (modo lab - não salva)';
+      mensagem.className = 'mensagem sucesso';
+      this.reset();
+      setTimeout(() => { mensagem.textContent = ''; }, 3000);
+    });
+    
+    document.getElementById('sortearTimes').addEventListener('click', function() {
+      const mensagem = document.getElementById('mensagem');
+      mensagem.textContent = '🎲 Times sorteados! (modo lab)';
+      mensagem.className = 'mensagem sucesso';
+      setTimeout(() => { mensagem.textContent = ''; }, 3000);
+    });
+    
+    document.getElementById('limparConfirmados').addEventListener('click', function() {
+      if (confirm('Limpar lista? (modo lab - não afeta dados reais)')) {
+        const mensagem = document.getElementById('mensagem');
+        mensagem.textContent = '🗑️ Lista limpa! (modo lab)';
+        mensagem.className = 'mensagem';
+        setTimeout(() => { mensagem.textContent = ''; }, 3000);
+      }
+    });
+    
+    // Botões de remover
+    document.querySelectorAll('.btn-remove').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const li = this.closest('li');
+        li.style.opacity = '0.5';
+        setTimeout(() => li.style.opacity = '1', 1000);
+      });
+    });
+  </script>
+</body>
+</html>

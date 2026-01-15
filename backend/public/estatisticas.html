@@ -194,9 +194,89 @@
       font-size: 48px;
       margin-bottom: 15px;
     }
+    .login-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-modal.ativo { display: flex; }
+    .login-box {
+      background: rgba(11, 37, 64, 0.95);
+      border-radius: 12px;
+      padding: 30px;
+      max-width: 350px;
+      width: 90%;
+      border: 1px solid rgba(52, 211, 153, 0.3);
+    }
+    .login-box h3 {
+      color: #34d399;
+      margin-bottom: 20px;
+    }
+    .login-box input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      color: #eaf6ff;
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    .login-box button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .login-box .btn-login {
+      background: linear-gradient(90deg, #34d399, #10b981);
+      color: #071226;
+      margin-bottom: 8px;
+    }
+    .login-box .btn-cancelar {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #a0d8c5;
+    }
+    .login-erro {
+      color: #ef4444;
+      font-size: 13px;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .admin-badge {
+      background: rgba(52, 211, 153, 0.2);
+      color: #34d399;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      margin-left: 10px;
+    }
   </style>
 </head>
 <body>
+  <!-- Modal de Login -->
+  <div class="login-modal" id="loginModal">
+    <div class="login-box">
+      <h3>🔐 Login Admin</h3>
+      <div class="login-erro" id="loginErro"></div>
+      <input type="text" id="loginUsuario" placeholder="Usuário">
+      <input type="password" id="loginSenha" placeholder="Senha">
+      <button class="btn-login" onclick="fazerLogin()">Entrar</button>
+      <button class="btn-cancelar" onclick="fecharLogin()">Cancelar</button>
+    </div>
+  </div>
+
   <div class="container">
     <header>
       <div class="logo-section">
@@ -208,6 +288,8 @@
       </div>
       <nav class="nav-links">
         <a href="index.html">Voltar</a>
+        <a href="#" onclick="abrirLogin(event)" id="btnLogin" style="background: rgba(52, 211, 153, 0.2); color: #34d399;">🔐 Admin</a>
+        <a href="#" onclick="fazerLogout(event)" id="btnLogout" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; display: none;">Sair</a>
         <a href="#" onclick="ativarModoTeste(event)" style="background: rgba(255, 213, 79, 0.2); color: #ffd54f; display: none;" id="btnModoTeste">🧪 Teste</a>
       </nav>
     </header>
@@ -266,6 +348,101 @@
     let statsData = null;
     let filtroAtual = 'todos';
     let modoTeste = false;
+    let adminToken = localStorage.getItem('adminToken') || null;
+    let isAdmin = false;
+
+    // Funções de Login
+    function abrirLogin(e) {
+      e.preventDefault();
+      document.getElementById('loginModal').classList.add('ativo');
+      document.getElementById('loginUsuario').focus();
+    }
+
+    function fecharLogin() {
+      document.getElementById('loginModal').classList.remove('ativo');
+      document.getElementById('loginErro').style.display = 'none';
+      document.getElementById('loginUsuario').value = '';
+      document.getElementById('loginSenha').value = '';
+    }
+
+    async function fazerLogin() {
+      const usuario = document.getElementById('loginUsuario').value.trim();
+      const senha = document.getElementById('loginSenha').value;
+      const erroEl = document.getElementById('loginErro');
+      
+      if (!usuario || !senha) {
+        erroEl.textContent = 'Preencha usuário e senha.';
+        erroEl.style.display = 'block';
+        return;
+      }
+      
+      try {
+        const res = await fetch('/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuario, senha })
+        });
+        const data = await res.json();
+        
+        if (data.sucesso && data.token) {
+          adminToken = data.token;
+          localStorage.setItem('adminToken', adminToken);
+          isAdmin = true;
+          atualizarUIAdmin();
+          fecharLogin();
+          renderizarRanking();
+        } else {
+          erroEl.textContent = data.erro || 'Erro ao fazer login.';
+          erroEl.style.display = 'block';
+        }
+      } catch (err) {
+        erroEl.textContent = 'Erro de conexão.';
+        erroEl.style.display = 'block';
+      }
+    }
+
+    async function fazerLogout(e) {
+      e.preventDefault();
+      try {
+        await fetch('/logout', {
+          method: 'POST',
+          headers: { 'X-Admin-Token': adminToken }
+        });
+      } catch (err) {}
+      adminToken = null;
+      isAdmin = false;
+      localStorage.removeItem('adminToken');
+      atualizarUIAdmin();
+      renderizarRanking();
+    }
+
+    async function verificarToken() {
+      if (!adminToken) return;
+      try {
+        const res = await fetch('/verificar-token', {
+          headers: { 'X-Admin-Token': adminToken }
+        });
+        const data = await res.json();
+        isAdmin = data.valido;
+        if (!isAdmin) {
+          adminToken = null;
+          localStorage.removeItem('adminToken');
+        }
+        atualizarUIAdmin();
+      } catch (err) {
+        isAdmin = false;
+      }
+    }
+
+    function atualizarUIAdmin() {
+      document.getElementById('btnLogin').style.display = isAdmin ? 'none' : 'block';
+      document.getElementById('btnLogout').style.display = isAdmin ? 'block' : 'none';
+    }
+
+    // Enter para fazer login
+    document.getElementById('loginSenha').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') fazerLogin();
+    });
 
     // Dados de teste
     const nomesFemininos = [
@@ -389,6 +566,12 @@
         else if (posicao === 2) posicaoClass = 'top2';
         else if (posicao === 3) posicaoClass = 'top3';
 
+        const btnRemover = isAdmin ? `
+            <td style="text-align: center;">
+              <button onclick="removerUsuario('${d.nome.replace(/'/g, "\\'")}')" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;" title="Remover ${d.nome}">✕</button>
+            </td>
+        ` : '<td></td>';
+
         return `
           <tr>
             <td class="ranking-position ${posicaoClass}">🏆 ${posicao}</td>
@@ -405,9 +588,7 @@
             </td>
             <td style="text-align: right; font-weight: 700; color: #34d399;">${d.total_confirmacoes}</td>
             <td style="text-align: right; font-size: 12px; color: #a0d8c5;">${dataFormatada}</td>
-            <td style="text-align: center;">
-              <button onclick="removerUsuario('${d.nome.replace(/'/g, "\\'")}')" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #ef4444; width: 32px; height: 32px; border-radius: 6px; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;" title="Remover ${d.nome}">✕</button>
-            </td>
+            ${btnRemover}
           </tr>
         `;
       }).join('');
@@ -425,11 +606,18 @@
     }
 
     async function removerUsuario(nome) {
+      if (!isAdmin) {
+        alert('Você precisa estar logado como admin para remover usuários.');
+        return;
+      }
       if (!confirm(`Tem certeza que deseja remover "${nome}" das estatísticas?\n\nIsso removerá TODAS as confirmações deste usuário.`)) {
         return;
       }
       try {
-        const res = await fetch('/estatisticas/' + encodeURIComponent(nome), { method: 'DELETE' });
+        const res = await fetch('/estatisticas/' + encodeURIComponent(nome), { 
+          method: 'DELETE',
+          headers: { 'X-Admin-Token': adminToken }
+        });
         const data = await res.json();
         if (data.sucesso) {
           alert(`Usuário "${nome}" removido com sucesso! (${data.removidos} confirmações removidas)`);
@@ -443,6 +631,8 @@
       }
     }
 
+    // Inicialização
+    verificarToken();
     carregarEstatisticas();
     setInterval(carregarEstatisticas, 10000);
   </script>

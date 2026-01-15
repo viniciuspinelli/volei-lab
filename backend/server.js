@@ -1,5 +1,6 @@
 const express = require('express');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const cors = require('cors');
 const path = require('path');
@@ -21,6 +22,19 @@ const pool = new Pool({
 
 const DATA_FILE = './confirmados.json';
 
+// Função para gerar hash de senha
+function hashSenha(senha) {
+  return crypto.createHash('sha256').update(senha).digest('hex');
+}
+
+// Função para gerar token de sessão
+function gerarToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+// Armazena tokens de sessão válidos (em memória - resetados quando servidor reinicia)
+const sessoes = new Map();
+
 // Criação/atualização da tabela se não existir (inclui genero e teste)
 async function criarTabela() {
   try {
@@ -36,8 +50,18 @@ async function criarTabela() {
     `);
     await pool.query("ALTER TABLE confirmados ADD COLUMN IF NOT EXISTS genero VARCHAR(20)");
     await pool.query("ALTER TABLE confirmados ADD COLUMN IF NOT EXISTS teste BOOLEAN DEFAULT false");
+    
+    // Criar tabela de admin
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS admin (
+        id SERIAL PRIMARY KEY,
+        usuario VARCHAR(50) UNIQUE NOT NULL,
+        senha_hash VARCHAR(64) NOT NULL,
+        criado_em TIMESTAMP NOT NULL DEFAULT NOW()
+      )
+    `);
   } catch (err) {
-    console.error('Erro ao criar/atualizar tabela confirmados:', err);
+    console.error('Erro ao criar/atualizar tabelas:', err);
   }
 }
 criarTabela();
@@ -112,8 +136,91 @@ app.delete('/confirmados/:id', async (req, res) => {
   }
 });
 
-// Rota para remover todas as confirmações de um usuário por nome
-app.delete('/estatisticas/:nome', async (req, res) => {
+// Middleware para verificar autenticação admin
+function verificarAdmin(req, res, next) {
+  const token = req.headers['x-admin-token'];
+  if (!token || !sessoes.has(token)) {
+    return res.status(401).json({ erro: 'Acesso negado. Faça login como admin.' });
+  }
+  next();
+}
+
+// Rota para setup inicial do admin (só funciona se não existir admin)
+app.post('/setup-admin', async (req, res) => {
+  const { usuario, senha } = req.body;
+  if (!usuario || !senha) {
+    return res.status(400).json({ erro: 'Usuário e senha são obrigatórios.' });
+  }
+  try {
+    // Verifica se já existe um admin
+    const existe = await pool.query('SELECT COUNT(*) FROM admin');
+    if (parseInt(existe.rows[0].count) > 0) {
+      return res.status(403).json({ erro: 'Admin já configurado. Use login.' });
+    }
+    // Cria o admin
+    const senhaHash = hashSenha(senha);
+    await pool.query('INSERT INTO admin (usuario, senha_hash) VALUES ($1, $2)', [usuario, senhaHash]);
+    res.json({ sucesso: true, mensagem: 'Admin criado com sucesso!' });
+  } catch (err) {
+    console.error('Erro setup-admin:', err);
+    res.status(500).json({ erro: 'Erro ao criar admin.' });
+  }
+});
+
+// Rota para verificar se admin existe
+app.get('/admin-existe', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT COUNT(*) FROM admin');
+    res.json({ existe: parseInt(result.rows[0].count) > 0 });
+  } catch (err) {
+    res.json({ existe: false });
+  }
+});
+
+// Rota para login admin
+app.post('/login', async (req, res) => {
+  const { usuario, senha } = req.body;
+  if (!usuario || !senha) {
+    return res.status(400).json({ erro: 'Usuário e senha são obrigatórios.' });
+  }
+  try {
+    const senhaHash = hashSenha(senha);
+    const result = await pool.query('SELECT * FROM admin WHERE usuario = $1 AND senha_hash = $2', [usuario, senhaHash]);
+    if (result.rowCount === 0) {
+      return res.status(401).json({ erro: 'Usuário ou senha inválidos.' });
+    }
+    const token = gerarToken();
+    sessoes.set(token, { usuario, loginEm: Date.now() });
+    // Limpa tokens antigos (mais de 24h)
+    for (const [t, data] of sessoes) {
+      if (Date.now() - data.loginEm > 24 * 60 * 60 * 1000) sessoes.delete(t);
+    }
+    res.json({ sucesso: true, token });
+  } catch (err) {
+    console.error('Erro login:', err);
+    res.status(500).json({ erro: 'Erro ao fazer login.' });
+  }
+});
+
+// Rota para logout
+app.post('/logout', (req, res) => {
+  const token = req.headers['x-admin-token'];
+  if (token) sessoes.delete(token);
+  res.json({ sucesso: true });
+});
+
+// Rota para verificar se token é válido
+app.get('/verificar-token', (req, res) => {
+  const token = req.headers['x-admin-token'];
+  if (token && sessoes.has(token)) {
+    res.json({ valido: true, usuario: sessoes.get(token).usuario });
+  } else {
+    res.json({ valido: false });
+  }
+});
+
+// Rota para remover todas as confirmações de um usuário por nome (PROTEGIDA)
+app.delete('/estatisticas/:nome', verificarAdmin, async (req, res) => {
   const nome = decodeURIComponent(req.params.nome);
   try {
     const del = await pool.query('DELETE FROM confirmados WHERE LOWER(nome) = LOWER($1)', [nome]);

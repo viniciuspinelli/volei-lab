@@ -14,6 +14,9 @@ const PORT = 3001;
 // URL base do app (para callback do Steam) - remove barra final se existir
 const BASE_URL = (process.env.BASE_URL || 'http://localhost:3001').replace(/\/+$/, '');
 
+// Confiar no proxy do Render (necessário para cookies seguros atrás de proxy)
+app.set('trust proxy', 1);
+
 app.use(cors());
 app.use(express.json());
 
@@ -24,6 +27,7 @@ app.use(session({
   saveUninitialized: false,
   cookie: { 
     secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax', // Permite cookies em redirecionamentos do Steam
     maxAge: 24 * 60 * 60 * 1000 // 24 horas
   }
 }));

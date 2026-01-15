@@ -1071,7 +1071,7 @@
         .then(data => {
           const ranking = data.ranking || [];
           
-          const total = ranking.reduce((sum, r) => sum + (r.total_confirmacoes || 0), 0);
+          const total = ranking.reduce((sum, r) => sum + parseInt(r.total_confirmacoes || 0, 10), 0);
           const mensalistas = ranking.filter(r => r.tipo === 'mensalista').length;
           const avulsos = ranking.filter(r => r.tipo === 'avulso').length;
           
@@ -1087,7 +1087,7 @@
             const li = document.createElement('li');
             li.className = 'ranking-item';
             
-            const presencas = r.total_confirmacoes || 0;
+            const presencas = parseInt(r.total_confirmacoes || 0, 10);
             const deleteBtn = isAdmin ? `<button class="btn-remove" onclick="removerUsuarioEstatisticas('${r.nome.replace(/'/g, "\\'")}')" title="Remover">✕</button>` : '';
             
             li.innerHTML = `

@@ -698,13 +698,13 @@
       
       <button class="btn-steam" onclick="loginSteam()">
         <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C6.48 2 2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3l-.5 3H13v6.95c5.05-.5 9-4.76 9-9.95 0-5.52-4.48-10-10-10z"/>
+          <path d="M12 2a10 10 0 0 0-3.16 19.5l4.43-1.78a2.5 2.5 0 0 0 1.46-2.28v-.04l2.62-1.87a3.63 3.63 0 1 0-1.44-6.53l-4.88 2a3.37 3.37 0 0 0-.79-.09 3.5 3.5 0 0 0-3.5 3.5v.01L2.93 13.3A10 10 0 0 0 12 2zm4.35 6.5a2.13 2.13 0 1 1 0 4.26 2.13 2.13 0 0 1 0-4.26zM8.24 16a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/>
         </svg>
         <span>Entrar com Steam</span>
       </button>
       
-      <p style="margin-top: 24px; font-size: 12px; color: var(--text-muted);">
-        🧪 Ambiente de testes - Autenticação simulada
+      <p class="login-hint" style="margin-top: 24px; font-size: 12px; color: var(--text-muted);">
+        🎮 Autenticação via Steam OpenID
       </p>
     </div>
   </div>
@@ -863,15 +863,29 @@
   </div>
 
   <script>
-    // ====== AUTENTICAÇÃO STEAM (SIMULADA) ======
+    // ====== AUTENTICAÇÃO STEAM (REAL) ======
     let steamUser = null;
+    let steamConfigured = false;
     
-    function checkAuth() {
-      const savedUser = localStorage.getItem('steamUser');
-      if (savedUser) {
-        steamUser = JSON.parse(savedUser);
-        showApp();
-      } else {
+    async function checkAuth() {
+      try {
+        // Verifica se Steam está configurada
+        const statusRes = await fetch('/auth/steam/status');
+        const status = await statusRes.json();
+        steamConfigured = status.configured;
+        
+        // Verifica se usuário está autenticado
+        const userRes = await fetch('/auth/user');
+        const userData = await userRes.json();
+        
+        if (userData.authenticated) {
+          steamUser = userData.user;
+          showApp();
+        } else {
+          showLogin();
+        }
+      } catch (err) {
+        console.error('Erro ao verificar autenticação:', err);
         showLogin();
       }
     }
@@ -879,6 +893,21 @@
     function showLogin() {
       document.getElementById('loginScreen').classList.remove('hidden');
       document.querySelector('.app-container').style.display = 'none';
+      
+      // Atualiza texto do botão baseado na configuração
+      const btn = document.querySelector('.btn-steam');
+      const hint = document.querySelector('.login-hint');
+      
+      if (!steamConfigured) {
+        btn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3l-.5 3H13v6.95c5.05-.5 9-4.76 9-9.95 0-5.52-4.48-10-10-10z"/>
+          </svg>
+          <span>Steam não configurada</span>
+        `;
+        btn.disabled = true;
+        if (hint) hint.innerHTML = '⚠️ Configure STEAM_API_KEY no servidor';
+      }
     }
     
     function showApp() {
@@ -889,44 +918,41 @@
     
     function updateUserInfo() {
       if (steamUser) {
-        document.getElementById('userName').textContent = steamUser.name;
-        document.getElementById('userAvatar').textContent = steamUser.avatar || '👤';
+        document.getElementById('userName').textContent = steamUser.displayName;
+        
+        // Se tem avatar do Steam, usa imagem
+        const avatarEl = document.getElementById('userAvatar');
+        if (steamUser.avatar) {
+          avatarEl.innerHTML = `<img src="${steamUser.avatar}" alt="Avatar" style="width:100%;height:100%;border-radius:50%;">`;
+        } else {
+          avatarEl.textContent = '👤';
+        }
       }
     }
     
     function loginSteam() {
-      // Simulação de login Steam - em produção seria redirecionado para Steam OpenID
-      const mockUsers = [
-        { id: '76561198012345678', name: 'PlayerOne', avatar: '👾' },
-        { id: '76561198087654321', name: 'GamerPro', avatar: '🎮' },
-        { id: '76561198011223344', name: 'VoleiMaster', avatar: '🏆' },
-      ];
-      
-      // Simula popup de login
-      const randomUser = mockUsers[Math.floor(Math.random() * mockUsers.length)];
-      
-      // Mostra "loading"
-      const btn = document.querySelector('.btn-steam');
-      const originalText = btn.innerHTML;
-      btn.innerHTML = '<span>Conectando...</span>';
-      btn.disabled = true;
-      
-      setTimeout(() => {
-        steamUser = randomUser;
-        localStorage.setItem('steamUser', JSON.stringify(steamUser));
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-        showApp();
-        atualizarLista();
-      }, 1500);
+      // Redireciona para autenticação Steam real
+      window.location.href = '/auth/steam';
     }
     
     function logoutSteam() {
       if (confirm('Deseja sair da sua conta Steam?')) {
-        steamUser = null;
-        localStorage.removeItem('steamUser');
-        showLogin();
+        window.location.href = '/auth/logout';
       }
+    }
+    
+    // Verifica parâmetros da URL (callback)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auth') === 'success') {
+      // Remove parâmetros da URL
+      window.history.replaceState({}, document.title, '/lab.html');
+    }
+    if (urlParams.get('logout') === 'success') {
+      window.history.replaceState({}, document.title, '/lab.html');
+    }
+    if (urlParams.get('error') === 'auth_failed') {
+      alert('Falha na autenticação Steam. Tente novamente.');
+      window.history.replaceState({}, document.title, '/lab.html');
     }
     
     // Inicializa verificando autenticação

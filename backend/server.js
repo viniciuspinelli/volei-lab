@@ -1,6 +1,9 @@
 const express = require('express');
 const fs = require('fs');
 const crypto = require('crypto');
+const session = require('express-session');
+const passport = require('passport');
+const SteamStrategy = require('passport-steam').Strategy;
 
 const cors = require('cors');
 const path = require('path');
@@ -8,8 +11,53 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = 3001;
 
+// URL base do app (para callback do Steam)
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3001';
+
 app.use(cors());
 app.use(express.json());
+
+// Configuração de sessão para Steam Auth
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'volei-sexta-secret-key-dev',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 24 horas
+  }
+}));
+
+// Inicializar Passport
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Serialização do usuário Steam
+passport.serializeUser((user, done) => {
+  done(null, user);
+});
+
+passport.deserializeUser((obj, done) => {
+  done(null, obj);
+});
+
+// Configurar estratégia Steam (só se API Key estiver configurada)
+if (process.env.STEAM_API_KEY) {
+  passport.use(new SteamStrategy({
+    returnURL: `${BASE_URL}/auth/steam/callback`,
+    realm: BASE_URL,
+    apiKey: process.env.STEAM_API_KEY
+  }, (identifier, profile, done) => {
+    // Retorna o perfil do usuário Steam
+    const user = {
+      steamId: profile.id,
+      displayName: profile.displayName,
+      avatar: profile.photos[2]?.value || profile.photos[0]?.value,
+      profileUrl: profile._json.profileurl
+    };
+    return done(null, user);
+  }));
+}
 
 // Servir arquivos estáticos do frontend
 app.use(express.static(path.join(__dirname, 'public')));
@@ -275,6 +323,60 @@ app.get('/estatisticas', async (req, res) => {
   }
 });
 
+// ====== ROTAS DE AUTENTICAÇÃO STEAM ======
+
+// Rota para iniciar login Steam
+app.get('/auth/steam', (req, res, next) => {
+  if (!process.env.STEAM_API_KEY) {
+    return res.status(503).json({ erro: 'Autenticação Steam não configurada. Configure STEAM_API_KEY.' });
+  }
+  passport.authenticate('steam')(req, res, next);
+});
+
+// Callback do Steam após autenticação
+app.get('/auth/steam/callback', 
+  passport.authenticate('steam', { failureRedirect: '/lab.html?error=auth_failed' }),
+  (req, res) => {
+    // Autenticação bem-sucedida, redireciona para o lab
+    res.redirect('/lab.html?auth=success');
+  }
+);
+
+// Rota para verificar se está autenticado
+app.get('/auth/user', (req, res) => {
+  if (req.isAuthenticated()) {
+    res.json({ 
+      authenticated: true, 
+      user: req.user 
+    });
+  } else {
+    res.json({ authenticated: false });
+  }
+});
+
+// Rota para logout
+app.get('/auth/logout', (req, res) => {
+  req.logout((err) => {
+    if (err) {
+      return res.status(500).json({ erro: 'Erro ao fazer logout' });
+    }
+    res.redirect('/lab.html?logout=success');
+  });
+});
+
+// Rota para verificar status da configuração Steam
+app.get('/auth/steam/status', (req, res) => {
+  res.json({
+    configured: !!process.env.STEAM_API_KEY,
+    baseUrl: BASE_URL
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
+  if (process.env.STEAM_API_KEY) {
+    console.log('✅ Autenticação Steam configurada');
+  } else {
+    console.log('⚠️ STEAM_API_KEY não configurada - autenticação Steam desabilitada');
+  }
 });

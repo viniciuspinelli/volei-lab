@@ -7,243 +7,269 @@
   <meta name="robots" content="noindex, nofollow">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
   <style>
-    /* ========================================
-       🧪 ÁREA DE TESTES - MODIFIQUE À VONTADE
-       ======================================== */
-    
     :root {
-      /* Cores principais - experimente mudar! */
-      --bg-primary: #071226;
-      --bg-secondary: #0a1f3a;
-      --text-primary: #eaf6ff;
-      --text-muted: #9fb3c8;
-      --accent-green: #34d399;
-      --accent-green-dark: #10b981;
-      --accent-yellow: #ffd54f;
-      --accent-blue: #7dd3fc;
-      --accent-purple: #a78bfa;
+      --bg-primary: #000000;
+      --bg-secondary: #111111;
+      --bg-card: #1a1a1a;
+      --text-primary: #ffffff;
+      --text-muted: #888888;
+      --accent: #ff6b00;
+      --accent-light: #ff8533;
+      --accent-dark: #cc5500;
       --danger: #ef4444;
-      
-      /* Espaçamentos */
       --spacing-xs: 4px;
       --spacing-sm: 8px;
       --spacing-md: 16px;
       --spacing-lg: 24px;
       --spacing-xl: 32px;
-      
-      /* Bordas */
       --radius-sm: 6px;
       --radius-md: 10px;
-      --radius-lg: 12px;
-      --radius-full: 9999px;
+      --radius-lg: 16px;
+      --sidebar-width: 240px;
     }
     
     * { box-sizing: border-box; margin: 0; padding: 0; }
     
     body {
       font-family: Inter, system-ui, Arial, sans-serif;
-      background: linear-gradient(180deg, #020617 0%, var(--bg-primary) 50%);
+      background: var(--bg-primary);
       color: var(--text-primary);
       min-height: 100vh;
+    }
+    
+    /* ====== LAYOUT PRINCIPAL ====== */
+    .app-container {
       display: flex;
-      align-items: center;
-      justify-content: center;
+      min-height: 100vh;
+    }
+    
+    /* ====== SIDEBAR (DESKTOP) ====== */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--bg-secondary);
+      border-right: 1px solid rgba(255,255,255,0.05);
       padding: var(--spacing-lg);
-    }
-    
-    .container {
-      width: 100%;
-      max-width: 520px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-      backdrop-filter: blur(6px);
-      border-radius: var(--radius-lg);
-      padding: 20px 20px 28px;
-      box-shadow: 0 8px 24px rgba(2,6,23,0.7);
-      border: 1px solid rgba(255,255,255,0.04);
-    }
-    
-    /* Header */
-    header {
       display: flex;
       flex-direction: column;
-      align-items: flex-start;
-      gap: var(--spacing-md);
-      margin-bottom: 20px;
-      position: relative;
+      position: fixed;
+      height: 100vh;
+      left: 0;
+      top: 0;
     }
     
-    .logo-brand {
+    .sidebar-logo {
       display: flex;
       align-items: baseline;
       gap: 4px;
       font-weight: 700;
-      letter-spacing: 2px;
-      font-size: 20px;
+      letter-spacing: 1px;
+      font-size: 18px;
+      margin-bottom: var(--spacing-xl);
+      padding-bottom: var(--spacing-lg);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
     }
     
-    .logo-brand .part1 { color: var(--text-primary); }
-    .logo-brand .part2 { color: var(--accent-green); }
-    .logo-brand .part3 { color: var(--text-primary); font-size: 12px; font-weight: 600; letter-spacing: 1px; }
+    .sidebar-logo .part1 { color: var(--text-primary); }
+    .sidebar-logo .part2 { color: var(--accent); }
     
-    .lab-badge {
-      position: absolute;
-      top: 0;
-      right: 0;
-      padding: 6px 12px;
-      background: rgba(251, 191, 36, 0.2);
-      border: 1px solid rgba(251, 191, 36, 0.3);
-      border-radius: var(--radius-sm);
-      color: #fbbf24;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    
-    /* Navegação */
-    .nav-links {
+    .sidebar-nav {
       display: flex;
+      flex-direction: column;
       gap: var(--spacing-sm);
-      margin-top: var(--spacing-sm);
+      flex: 1;
     }
     
-    .nav-link {
-      padding: 8px 12px;
-      background: rgba(52, 211, 153, 0.2);
-      border: 1px solid rgba(52, 211, 153, 0.3);
-      border-radius: var(--radius-sm);
-      color: var(--accent-green);
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-md);
+      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
       text-decoration: none;
-      font-size: 13px;
-      font-weight: 600;
-      transition: all 0.3s;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      width: 100%;
+      text-align: left;
     }
     
-    .nav-link:hover {
-      background: rgba(52, 211, 153, 0.3);
+    .nav-item:hover {
+      background: rgba(255, 107, 0, 0.1);
+      color: var(--text-primary);
     }
     
-    .nav-link.secondary {
-      background: rgba(255, 255, 255, 0.05);
-      border-color: rgba(255, 255, 255, 0.1);
-      color: var(--text-muted);
+    .nav-item.active {
+      background: rgba(255, 107, 0, 0.15);
+      color: var(--accent);
+      border-left: 3px solid var(--accent);
     }
     
-    .nav-link.secondary:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
-    
-    /* Mensagens */
-    .mensagem {
+    .nav-item .icon {
+      font-size: 18px;
+      width: 24px;
       text-align: center;
-      margin-bottom: var(--spacing-sm);
-      color: var(--text-muted);
-      min-height: 20px;
     }
     
-    .mensagem.sucesso { color: var(--accent-green); }
-    .mensagem.erro { color: var(--danger); }
+    /* ====== CONTEÚDO PRINCIPAL ====== */
+    .main-content {
+      flex: 1;
+      margin-left: var(--sidebar-width);
+      padding: var(--spacing-xl);
+      min-height: 100vh;
+    }
     
-    /* Formulário */
-    form {
-      display: grid;
-      grid-template-columns: 1fr;
+    .page {
+      display: none;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .page.active {
+      display: block;
+    }
+    
+    .page-header {
+      margin-bottom: var(--spacing-xl);
+    }
+    
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: var(--spacing-xs);
+    }
+    
+    .page-subtitle {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    
+    /* ====== CARDS ====== */
+    .card {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      padding: var(--spacing-lg);
+      margin-bottom: var(--spacing-lg);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: var(--spacing-md);
+      display: flex;
+      align-items: center;
       gap: var(--spacing-sm);
-      margin-top: var(--spacing-sm);
+    }
+    
+    /* ====== FORMULÁRIO ====== */
+    .form-group {
+      margin-bottom: var(--spacing-md);
+    }
+    
+    .form-label {
+      display: block;
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: var(--spacing-xs);
     }
     
     input, select {
+      width: 100%;
       height: 48px;
       padding: 12px 14px;
       border-radius: var(--radius-md);
-      border: 1px solid rgba(255,255,255,0.04);
-      background: transparent;
-      color: inherit;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.03);
+      color: var(--text-primary);
       font-size: 15px;
-      transition: border-color 0.3s;
+      transition: border-color 0.2s;
     }
     
     input:focus, select:focus {
       outline: none;
-      border-color: var(--accent-green);
+      border-color: var(--accent);
+    }
+    
+    input::placeholder {
+      color: var(--text-muted);
     }
     
     select {
       appearance: none;
-      background: linear-gradient(180deg, rgba(255,255,255,0.01), transparent);
-      padding-right: 28px;
+      cursor: pointer;
     }
     
     select option {
-      background: #0b2540;
+      background: var(--bg-card);
       color: var(--text-primary);
-      padding: var(--spacing-sm);
     }
     
-    /* Botões */
+    /* ====== BOTÕES ====== */
     .btn {
       height: 48px;
-      padding: 12px 16px;
+      padding: 12px 20px;
       border-radius: var(--radius-md);
       border: none;
       font-size: 15px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--spacing-sm);
     }
     
     .btn-primary {
-      background: linear-gradient(90deg, var(--accent-green), var(--accent-green-dark));
-      color: #031022;
+      background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+      color: #000;
     }
     
     .btn-primary:hover {
-      filter: brightness(1.1);
+      background: linear-gradient(135deg, var(--accent-light), var(--accent));
+      transform: translateY(-1px);
     }
     
     .btn-secondary {
-      background: rgba(41, 128, 185, 0.2);
-      border: 1px solid rgba(41, 128, 185, 0.3);
-      color: #3498db;
+      background: rgba(255, 107, 0, 0.15);
+      border: 1px solid rgba(255, 107, 0, 0.3);
+      color: var(--accent);
     }
     
     .btn-secondary:hover {
-      background: rgba(41, 128, 185, 0.3);
+      background: rgba(255, 107, 0, 0.25);
     }
     
     .btn-danger {
-      background: rgba(239, 68, 68, 0.2);
+      background: rgba(239, 68, 68, 0.15);
       border: 1px solid rgba(239, 68, 68, 0.3);
       color: var(--danger);
     }
     
     .btn-danger:hover {
-      background: rgba(239, 68, 68, 0.3);
+      background: rgba(239, 68, 68, 0.25);
     }
     
-    .btn-ghost {
-      background: transparent;
-      border: 1px solid rgba(255,255,255,0.04);
-      color: var(--text-muted);
+    .btn-block {
+      width: 100%;
     }
     
-    .btn-ghost:hover {
-      background: rgba(255,255,255,0.05);
+    /* ====== LISTA DE CONFIRMADOS ====== */
+    .contador-badge {
+      background: rgba(255, 107, 0, 0.2);
+      color: var(--accent);
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
     }
     
-    /* Lista */
-    .lista {
-      margin-top: var(--spacing-lg);
-      display: flex;
-      flex-direction: column;
-      gap: var(--spacing-md);
-    }
-    
-    h2 {
-      margin: 0 0 var(--spacing-sm) 0;
-      font-size: 16px;
-      color: var(--text-primary);
-    }
-    
-    ul {
+    .lista-confirmados {
       list-style: none;
     }
     
@@ -251,117 +277,42 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 10px;
-      border-bottom: 1px solid rgba(255,255,255,0.02);
-      font-size: 15px;
+      padding: 14px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      transition: background 0.2s;
+    }
+    
+    .lista-item:hover {
+      background: rgba(255,255,255,0.02);
     }
     
     .lista-item.avulso {
-      background: linear-gradient(90deg, rgba(255,213,79,0.04), transparent);
-      border-left: 4px solid rgba(255,213,79,0.12);
+      border-left: 3px solid var(--accent);
+      background: rgba(255, 107, 0, 0.03);
+    }
+    
+    .lista-item .info {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      flex-wrap: wrap;
     }
     
     .lista-item .nome {
-      color: var(--text-primary);
+      font-weight: 500;
     }
     
     .lista-item.avulso .nome {
-      color: var(--accent-yellow);
-    }
-    
-    .btn-remove {
-      padding: 6px 10px;
-      background: rgba(239, 68, 68, 0.2);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      border-radius: var(--radius-sm);
-      color: var(--danger);
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-    
-    .btn-remove:hover {
-      background: rgba(239, 68, 68, 0.3);
-    }
-    
-    /* Ações */
-    .acoes {
-      display: flex;
-      gap: var(--spacing-sm);
-      flex-wrap: wrap;
-      margin-bottom: var(--spacing-md);
-    }
-    
-    /* Resultado Sorteio */
-    .resultado {
-      margin-top: var(--spacing-md);
-      background: rgba(0,0,0,0.3);
-      padding: var(--spacing-md);
-      border-radius: var(--radius-md);
-    }
-    
-    .resultado h3 {
-      color: var(--accent-green);
-      margin-bottom: var(--spacing-sm);
-      font-size: 14px;
-    }
-    
-    .resultado ul {
-      padding-left: 20px;
-      list-style: decimal;
-    }
-    
-    .resultado li {
-      color: var(--text-primary);
-      padding: 4px 0;
-    }
-    
-    /* Cards de Time */
-    .times-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: var(--spacing-sm);
-      margin-top: var(--spacing-md);
-    }
-    
-    .time-card {
-      background: rgba(0,0,0,0.2);
-      border-radius: var(--radius-md);
-      padding: var(--spacing-md);
-      border: 1px solid rgba(255,255,255,0.05);
-    }
-    
-    .time-card h4 {
-      color: var(--accent-green);
-      font-size: 14px;
-      margin-bottom: var(--spacing-sm);
-    }
-    
-    .time-card ul {
-      list-style: none;
-      padding: 0;
-    }
-    
-    .time-card li {
-      font-size: 13px;
-      padding: 4px 0;
-      color: var(--text-muted);
-    }
-    
-    /* Componentes extras para testar */
-    .divider {
-      height: 1px;
-      background: rgba(255,255,255,0.05);
-      margin: var(--spacing-md) 0;
+      color: var(--accent);
     }
     
     .badge {
       display: inline-block;
-      padding: 4px 8px;
+      padding: 3px 8px;
       border-radius: var(--radius-sm);
       font-size: 11px;
       font-weight: 600;
+      text-transform: uppercase;
     }
     
     .badge-mensalista {
@@ -370,8 +321,8 @@
     }
     
     .badge-avulso {
-      background: rgba(255, 213, 79, 0.2);
-      color: var(--accent-yellow);
+      background: rgba(255, 107, 0, 0.2);
+      color: var(--accent);
     }
     
     .badge-masculino {
@@ -384,174 +335,630 @@
       color: #ff6b9d;
     }
     
-    /* Tooltip */
-    [data-tooltip] {
-      position: relative;
-    }
-    
-    [data-tooltip]:hover::after {
-      content: attr(data-tooltip);
-      position: absolute;
-      bottom: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 6px 10px;
-      background: rgba(0,0,0,0.9);
-      color: #fff;
-      font-size: 12px;
+    .btn-remove {
+      padding: 8px 12px;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.2);
       border-radius: var(--radius-sm);
-      white-space: nowrap;
-      margin-bottom: 6px;
+      color: var(--danger);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
     }
     
-    /* Responsivo */
-    @media (max-width: 560px) {
-      .container { padding: 14px; }
-      .times-grid { grid-template-columns: 1fr; }
+    .btn-remove:hover {
+      background: rgba(239, 68, 68, 0.25);
     }
     
-    /* ========================================
-       FIM DA ÁREA DE TESTES
-       ======================================== */
+    /* ====== GRID DE TIMES ====== */
+    .times-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--spacing-md);
+    }
+    
+    .time-card {
+      background: rgba(255,255,255,0.02);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-md);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    
+    .time-card h4 {
+      color: var(--accent);
+      font-size: 15px;
+      margin-bottom: var(--spacing-sm);
+      padding-bottom: var(--spacing-sm);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    
+    .time-card ul {
+      list-style: none;
+    }
+    
+    .time-card li {
+      font-size: 14px;
+      padding: 6px 0;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .btn-whatsapp {
+      background: rgba(37, 211, 102, 0.15);
+      border: 1px solid rgba(37, 211, 102, 0.3);
+      color: #25d366;
+    }
+    
+    .btn-whatsapp:hover {
+      background: rgba(37, 211, 102, 0.25);
+    }
+    
+    /* ====== ESTATÍSTICAS ====== */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-lg);
+    }
+    
+    .stat-card {
+      background: rgba(255,255,255,0.02);
+      border-radius: var(--radius-md);
+      padding: var(--spacing-lg);
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    
+    .stat-value {
+      font-size: 36px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    
+    .stat-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: var(--spacing-xs);
+    }
+    
+    .ranking-list {
+      list-style: none;
+    }
+    
+    .ranking-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    
+    .ranking-item .pos {
+      width: 30px;
+      height: 30px;
+      background: rgba(255, 107, 0, 0.15);
+      color: var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      margin-right: var(--spacing-md);
+    }
+    
+    .ranking-item .pos.top-3 {
+      background: var(--accent);
+      color: #000;
+    }
+    
+    .ranking-item .count {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    
+    /* ====== BOTTOM NAV (MOBILE) ====== */
+    .bottom-nav {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg-secondary);
+      border-top: 1px solid rgba(255,255,255,0.05);
+      padding: var(--spacing-sm) 0;
+      z-index: 1000;
+    }
+    
+    .bottom-nav-items {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+    }
+    
+    .bottom-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 16px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: 500;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    
+    .bottom-nav-item .icon {
+      font-size: 22px;
+    }
+    
+    .bottom-nav-item.active {
+      color: var(--accent);
+    }
+    
+    /* ====== MENSAGEM ====== */
+    .mensagem {
+      text-align: center;
+      padding: var(--spacing-md);
+      margin-bottom: var(--spacing-md);
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      min-height: 20px;
+    }
+    
+    .mensagem.sucesso {
+      background: rgba(52, 211, 153, 0.1);
+      color: #34d399;
+    }
+    
+    .mensagem.erro {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+    }
+    
+    /* ====== RESPONSIVE ====== */
+    @media (max-width: 768px) {
+      .sidebar {
+        display: none;
+      }
+      
+      .main-content {
+        margin-left: 0;
+        padding: var(--spacing-md);
+        padding-bottom: 100px;
+      }
+      
+      .bottom-nav {
+        display: block;
+      }
+      
+      .page-title {
+        font-size: 22px;
+      }
+      
+      .times-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    /* ====== LAB BADGE ====== */
+    .lab-indicator {
+      position: fixed;
+      top: var(--spacing-md);
+      right: var(--spacing-md);
+      padding: 6px 12px;
+      background: rgba(251, 191, 36, 0.2);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      border-radius: var(--radius-sm);
+      color: #fbbf24;
+      font-size: 11px;
+      font-weight: 600;
+      z-index: 1001;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <div class="logo-brand">
+  <div class="lab-indicator">🧪 LAB</div>
+  
+  <div class="app-container">
+    <!-- Sidebar Desktop -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
         <span class="part1">PAGOU</span>
         <span class="part2">JOGOU</span>
-        <span class="part3">VOLEI</span>
       </div>
-      <span class="lab-badge">🧪 LAB UI</span>
       
-      <nav class="nav-links">
-        <a href="index.html" class="nav-link secondary">← Voltar</a>
-        <a href="estatisticas.html" class="nav-link">📊 Estatísticas</a>
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-page="confirmados">
+          <span class="icon">📋</span>
+          <span>Confirmados</span>
+        </button>
+        <button class="nav-item" data-page="sorteio">
+          <span class="icon">🎲</span>
+          <span>Sorteio</span>
+        </button>
+        <button class="nav-item" data-page="estatisticas">
+          <span class="icon">📊</span>
+          <span>Estatísticas</span>
+        </button>
       </nav>
-    </header>
+    </aside>
     
-    <div class="mensagem" id="mensagem"></div>
-    
-    <form id="formConfirma">
-      <input type="text" id="nome" placeholder="Seu nome" required />
-      <select id="genero" required>
-        <option value="">Selecione o gênero</option>
-        <option value="masculino">Masculino</option>
-        <option value="feminino">Feminino</option>
-      </select>
-      <select id="tipo" required>
-        <option value="">Selecione o tipo</option>
-        <option value="mensalista">Mensalista</option>
-        <option value="avulso">Avulso</option>
-      </select>
-      <button class="btn btn-primary" type="submit">Confirmar Presença</button>
-    </form>
-    
-    <div class="lista">
-      <h2>Confirmados <span class="badge badge-mensalista">14</span></h2>
+    <!-- Conteúdo Principal -->
+    <main class="main-content">
+      <!-- Página: Confirmados -->
+      <section id="page-confirmados" class="page active">
+        <div class="page-header">
+          <h1 class="page-title">Lista de Presença</h1>
+          <p class="page-subtitle">Confirme sua presença para o vôlei</p>
+        </div>
+        
+        <div class="card">
+          <h3 class="card-title">➕ Nova Confirmação</h3>
+          <form id="formConfirma">
+            <div class="form-group">
+              <label class="form-label">Nome</label>
+              <input type="text" id="nome" placeholder="Digite seu nome" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Gênero</label>
+              <select id="genero" required>
+                <option value="">Selecione</option>
+                <option value="masculino">Masculino</option>
+                <option value="feminino">Feminino</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tipo</label>
+              <select id="tipo" required>
+                <option value="">Selecione</option>
+                <option value="mensalista">Mensalista</option>
+                <option value="avulso">Avulso</option>
+              </select>
+            </div>
+            <button class="btn btn-primary btn-block" type="submit">Confirmar Presença</button>
+          </form>
+        </div>
+        
+        <div id="mensagem" class="mensagem"></div>
+        
+        <div class="card">
+          <h3 class="card-title">
+            👥 Confirmados
+            <span class="contador-badge" id="contadorConfirmados">0</span>
+          </h3>
+          <button class="btn btn-danger" id="limparConfirmados" style="margin-bottom: 16px;">🗑️ Limpar Lista</button>
+          <ul class="lista-confirmados" id="listaConfirmados"></ul>
+        </div>
+      </section>
       
-      <div class="acoes">
-        <button class="btn btn-secondary" id="sortearTimes">🎲 Sortear Times</button>
-        <button class="btn btn-danger" id="limparConfirmados">🗑️ Limpar</button>
+      <!-- Página: Sorteio -->
+      <section id="page-sorteio" class="page">
+        <div class="page-header">
+          <h1 class="page-title">Sorteio de Times</h1>
+          <p class="page-subtitle">Distribua os jogadores em times equilibrados</p>
+        </div>
+        
+        <div class="card">
+          <h3 class="card-title">🎲 Realizar Sorteio</h3>
+          <p style="color: var(--text-muted); margin-bottom: 16px; font-size: 14px;">
+            O sorteio distribui automaticamente os jogadores em 4 times, equilibrando homens e mulheres.
+          </p>
+          <button class="btn btn-primary btn-block" id="sortearTimes">Sortear Times</button>
+        </div>
+        
+        <div id="resultadoSorteio"></div>
+      </section>
+      
+      <!-- Página: Estatísticas -->
+      <section id="page-estatisticas" class="page">
+        <div class="page-header">
+          <h1 class="page-title">Estatísticas</h1>
+          <p class="page-subtitle">Acompanhe as presenças ao longo do tempo</p>
+        </div>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-label">Total de Presenças</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statJogadores">0</div>
+            <div class="stat-label">Jogadores Únicos</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statMensalistas">0</div>
+            <div class="stat-label">Mensalistas</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="statAvulsos">0</div>
+            <div class="stat-label">Avulsos</div>
+          </div>
+        </div>
+        
+        <div class="card">
+          <h3 class="card-title">🏆 Ranking de Presenças</h3>
+          <ul class="ranking-list" id="rankingList"></ul>
+        </div>
+      </section>
+    </main>
+    
+    <!-- Bottom Nav Mobile -->
+    <nav class="bottom-nav">
+      <div class="bottom-nav-items">
+        <button class="bottom-nav-item active" data-page="confirmados">
+          <span class="icon">📋</span>
+          <span>Confirmados</span>
+        </button>
+        <button class="bottom-nav-item" data-page="sorteio">
+          <span class="icon">🎲</span>
+          <span>Sorteio</span>
+        </button>
+        <button class="bottom-nav-item" data-page="estatisticas">
+          <span class="icon">📊</span>
+          <span>Estatísticas</span>
+        </button>
       </div>
-      
-      <ul id="listaConfirmados">
-        <!-- Exemplos estáticos para visualização -->
-        <li class="lista-item">
-          <span class="nome">1. João Silva <span class="badge badge-mensalista">mensalista</span> <span class="badge badge-masculino">M</span></span>
-          <button class="btn-remove" data-tooltip="Remover João Silva">✕</button>
-        </li>
-        <li class="lista-item avulso">
-          <span class="nome">2. Maria Santos <span class="badge badge-avulso">avulso</span> <span class="badge badge-feminino">F</span></span>
-          <button class="btn-remove">✕</button>
-        </li>
-        <li class="lista-item">
-          <span class="nome">3. Pedro Costa <span class="badge badge-mensalista">mensalista</span> <span class="badge badge-masculino">M</span></span>
-          <button class="btn-remove">✕</button>
-        </li>
-        <li class="lista-item">
-          <span class="nome">4. Ana Oliveira <span class="badge badge-mensalista">mensalista</span> <span class="badge badge-feminino">F</span></span>
-          <button class="btn-remove">✕</button>
-        </li>
-      </ul>
-      
-      <div class="divider"></div>
-      
-      <!-- Exemplo de resultado de sorteio -->
-      <h2>Resultado do Sorteio</h2>
-      <div class="times-grid">
-        <div class="time-card">
-          <h4>🏐 Time 1</h4>
-          <ul>
-            <li>João Silva (M)</li>
-            <li>Maria Santos (F)</li>
-            <li>Carlos Lima (M)</li>
-          </ul>
-        </div>
-        <div class="time-card">
-          <h4>🏐 Time 2</h4>
-          <ul>
-            <li>Pedro Costa (M)</li>
-            <li>Ana Oliveira (F)</li>
-            <li>Lucas Souza (M)</li>
-          </ul>
-        </div>
-        <div class="time-card">
-          <h4>🏐 Time 3</h4>
-          <ul>
-            <li>Rafael Dias (M)</li>
-            <li>Julia Ferreira (F)</li>
-            <li>Marcos Alves (M)</li>
-          </ul>
-        </div>
-        <div class="time-card">
-          <h4>🏐 Time 4</h4>
-          <ul>
-            <li>Bruno Rocha (M)</li>
-            <li>Camila Nunes (F)</li>
-            <li>Vaga Livre</li>
-          </ul>
-        </div>
-      </div>
-    </div>
+    </nav>
   </div>
-  
+
   <script>
-    // Scripts básicos para interação no lab
+    // ====== NAVEGAÇÃO ======
+    const navItems = document.querySelectorAll('[data-page]');
+    const pages = document.querySelectorAll('.page');
+    
+    function navigateTo(pageId) {
+      // Atualiza páginas
+      pages.forEach(p => p.classList.remove('active'));
+      document.getElementById('page-' + pageId).classList.add('active');
+      
+      // Atualiza nav items
+      navItems.forEach(item => {
+        item.classList.toggle('active', item.dataset.page === pageId);
+      });
+      
+      // Carrega dados específicos da página
+      if (pageId === 'estatisticas') {
+        carregarEstatisticas();
+      }
+    }
+    
+    navItems.forEach(item => {
+      item.addEventListener('click', () => navigateTo(item.dataset.page));
+    });
+    
+    // ====== API ======
+    function atualizarLista() {
+      fetch('/confirmados')
+        .then(res => res.json())
+        .then(data => {
+          let confirmed = Array.isArray(data) ? data.slice(0, 24) : (data.confirmed || []);
+          
+          document.getElementById('contadorConfirmados').textContent = confirmed.length;
+          
+          const ul = document.getElementById('listaConfirmados');
+          ul.innerHTML = '';
+          
+          confirmed.forEach((c, i) => {
+            const li = document.createElement('li');
+            li.className = 'lista-item' + (c.tipo === 'avulso' ? ' avulso' : '');
+            
+            const info = document.createElement('div');
+            info.className = 'info';
+            
+            const nome = document.createElement('span');
+            nome.className = 'nome';
+            nome.textContent = `${i + 1}. ${c.nome}`;
+            info.appendChild(nome);
+            
+            const tipoBadge = document.createElement('span');
+            tipoBadge.className = `badge badge-${c.tipo}`;
+            tipoBadge.textContent = c.tipo === 'mensalista' ? 'M' : 'A';
+            info.appendChild(tipoBadge);
+            
+            if (c.genero) {
+              const generoBadge = document.createElement('span');
+              generoBadge.className = `badge badge-${c.genero}`;
+              generoBadge.textContent = c.genero === 'masculino' ? '♂' : '♀';
+              info.appendChild(generoBadge);
+            }
+            
+            li.appendChild(info);
+            
+            const btn = document.createElement('button');
+            btn.className = 'btn-remove';
+            btn.textContent = '✕';
+            btn.onclick = () => removerConfirmado(c.id);
+            li.appendChild(btn);
+            
+            ul.appendChild(li);
+          });
+        })
+        .catch(err => mostrarMensagem('Erro ao carregar lista', 'erro'));
+    }
+    
+    function removerConfirmado(id) {
+      if (!confirm('Remover esta pessoa?')) return;
+      fetch(`/confirmados/${id}`, { method: 'DELETE' })
+        .then(res => res.json())
+        .then(data => {
+          if (data.sucesso) {
+            mostrarMensagem('Removido com sucesso', 'sucesso');
+            atualizarLista();
+          } else {
+            mostrarMensagem(data.erro || 'Erro ao remover', 'erro');
+          }
+        });
+    }
+    
+    function mostrarMensagem(texto, tipo) {
+      const el = document.getElementById('mensagem');
+      el.textContent = texto;
+      el.className = 'mensagem ' + tipo;
+      setTimeout(() => { el.textContent = ''; el.className = 'mensagem'; }, 3000);
+    }
+    
+    // ====== FORMULÁRIO ======
     document.getElementById('formConfirma').addEventListener('submit', function(e) {
       e.preventDefault();
-      const mensagem = document.getElementById('mensagem');
-      mensagem.textContent = '✅ Presença confirmada! (modo lab - não salva)';
-      mensagem.className = 'mensagem sucesso';
-      this.reset();
-      setTimeout(() => { mensagem.textContent = ''; }, 3000);
+      const nome = document.getElementById('nome').value.trim();
+      const tipo = document.getElementById('tipo').value;
+      const genero = document.getElementById('genero').value;
+      
+      if (!nome || !tipo || !genero) return;
+      
+      fetch('/confirmar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome, tipo, genero })
+      })
+        .then(res => res.json())
+        .then(data => {
+          mostrarMensagem('Presença confirmada!', 'sucesso');
+          atualizarLista();
+          this.reset();
+        })
+        .catch(() => mostrarMensagem('Erro ao confirmar', 'erro'));
     });
+    
+    // ====== SORTEIO ======
+    function sortearTimes(confirmados) {
+      confirmados = (confirmados || []).slice();
+      confirmados.forEach(c => { if (!c.genero) c.genero = 'masculino'; });
+      
+      const homens = confirmados.filter(c => c.genero === 'masculino').slice();
+      const mulheres = confirmados.filter(c => c.genero === 'feminino').slice();
+      
+      function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+      }
+      shuffle(homens);
+      shuffle(mulheres);
+      
+      const times = [[], [], [], []];
+      
+      for (let i = 0; i < Math.min(4, mulheres.length); i++) {
+        times[i].push(mulheres[i]);
+      }
+      for (let i = 4; i < mulheres.length; i++) {
+        times[i % 4].push(mulheres[i]);
+      }
+      for (let i = 0; i < homens.length; i++) {
+        times[i % 4].push(homens[i]);
+      }
+      
+      const maxSize = Math.max(...times.map(t => t.length));
+      for (let i = 0; i < 4; i++) {
+        while (times[i].length < maxSize) {
+          times[i].push({ nome: 'Vaga Livre', genero: '', tipo: '' });
+        }
+      }
+      
+      return times;
+    }
     
     document.getElementById('sortearTimes').addEventListener('click', function() {
-      const mensagem = document.getElementById('mensagem');
-      mensagem.textContent = '🎲 Times sorteados! (modo lab)';
-      mensagem.className = 'mensagem sucesso';
-      setTimeout(() => { mensagem.textContent = ''; }, 3000);
+      fetch('/confirmados')
+        .then(res => res.json())
+        .then(data => {
+          const list = Array.isArray(data) ? data : (data.confirmed || []);
+          const times = sortearTimes(list);
+          
+          let html = '<div class="card"><h3 class="card-title">🏐 Times Sorteados</h3><div class="times-grid">';
+          for (let i = 0; i < 4; i++) {
+            html += `<div class="time-card"><h4>Time ${i + 1}</h4><ul>`;
+            times[i].forEach(p => {
+              const badge = p.genero ? `<span class="badge badge-${p.genero}">${p.genero === 'masculino' ? '♂' : '♀'}</span>` : '';
+              html += `<li>${p.nome} ${badge}</li>`;
+            });
+            html += '</ul></div>';
+          }
+          html += '</div>';
+          html += '<button class="btn btn-whatsapp btn-block" style="margin-top:16px" onclick="compartilharWhatsApp()">📱 Compartilhar no WhatsApp</button>';
+          html += '</div>';
+          
+          document.getElementById('resultadoSorteio').innerHTML = html;
+          window.ultimoSorteio = times;
+        });
     });
     
+    function compartilharWhatsApp() {
+      if (!window.ultimoSorteio) return;
+      let mensagem = '*🏐 SORTEIO DOS TIMES - VÔLEI SEXTA 🏐*%0A%0A';
+      for (let i = 0; i < 4; i++) {
+        mensagem += `*Time ${i + 1}*%0A`;
+        window.ultimoSorteio[i].forEach(p => {
+          mensagem += `• ${p.nome}${p.genero ? ' (' + p.genero + ')' : ''}%0A`;
+        });
+        mensagem += '%0A';
+      }
+      window.open(`https://wa.me/5511986439388?text=${mensagem}`, '_blank');
+    }
+    
+    // ====== LIMPAR LISTA ======
     document.getElementById('limparConfirmados').addEventListener('click', function() {
-      if (confirm('Limpar lista? (modo lab - não afeta dados reais)')) {
-        const mensagem = document.getElementById('mensagem');
-        mensagem.textContent = '🗑️ Lista limpa! (modo lab)';
-        mensagem.className = 'mensagem';
-        setTimeout(() => { mensagem.textContent = ''; }, 3000);
+      if (confirm('Limpar todos os confirmados?')) {
+        fetch('/confirmados', { method: 'DELETE' })
+          .then(res => res.json())
+          .then(data => {
+            if (data.sucesso) {
+              mostrarMensagem('Lista limpa!', 'sucesso');
+              atualizarLista();
+            }
+          });
       }
     });
     
-    // Botões de remover
-    document.querySelectorAll('.btn-remove').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const li = this.closest('li');
-        li.style.opacity = '0.5';
-        setTimeout(() => li.style.opacity = '1', 1000);
-      });
-    });
+    // ====== ESTATÍSTICAS ======
+    function carregarEstatisticas() {
+      fetch('/estatisticas')
+        .then(res => res.json())
+        .then(data => {
+          const ranking = data.ranking || [];
+          
+          const total = ranking.reduce((sum, r) => sum + r.total, 0);
+          const mensalistas = ranking.filter(r => r.tipo === 'mensalista').length;
+          const avulsos = ranking.filter(r => r.tipo === 'avulso').length;
+          
+          document.getElementById('statTotal').textContent = total;
+          document.getElementById('statJogadores').textContent = ranking.length;
+          document.getElementById('statMensalistas').textContent = mensalistas;
+          document.getElementById('statAvulsos').textContent = avulsos;
+          
+          const ul = document.getElementById('rankingList');
+          ul.innerHTML = '';
+          
+          ranking.slice(0, 10).forEach((r, i) => {
+            const li = document.createElement('li');
+            li.className = 'ranking-item';
+            li.innerHTML = `
+              <div style="display:flex;align-items:center">
+                <span class="pos ${i < 3 ? 'top-3' : ''}">${i + 1}</span>
+                <span>${r.nome}</span>
+              </div>
+              <span class="count">${r.total} presenças</span>
+            `;
+            ul.appendChild(li);
+          });
+        })
+        .catch(() => {});
+    }
+    
+    // ====== INIT ======
+    atualizarLista();
   </script>
 </body>
 </html>

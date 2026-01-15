@@ -29,8 +29,11 @@ function atualizarLista() {
         span.textContent = `${i + 1}. ${c.nome} (${c.tipo})`;
         span.style.color = c.tipo === 'avulso' ? '#ffd54f' : '#eaf6ff';
         const btn = document.createElement('button');
-        btn.className = 'remove-btn';
-        btn.textContent = 'Remover';
+        btn.style.cssText = 'padding: 6px 10px; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; color: #ef4444; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.3s;';
+        btn.textContent = '✕';
+        btn.title = 'Remover ' + c.nome;
+        btn.addEventListener('mouseenter', () => btn.style.background = 'rgba(239, 68, 68, 0.3)');
+        btn.addEventListener('mouseleave', () => btn.style.background = 'rgba(239, 68, 68, 0.2)');
         btn.addEventListener('click', () => removerConfirmado(c.id));
         li.appendChild(span);
         li.appendChild(btn);

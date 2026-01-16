@@ -430,54 +430,55 @@
     });
     
     // SORTEIO CORRIGIDO (24 max, 4x6 perfeitos, sem vaga extra se 24)
-    function sortearTimes(confirmados) {
-      const MAX_JOGADORES = 24;
-      const NUM_TIMES = 4;
-      const MAX_POR_TIME = 6;
-      
-      let jogadores = confirmados.slice(0, MAX_JOGADORES);
-      jogadores.forEach(c => c.genero ||= 'masculino');
-      
-      const homens = jogadores.filter(c => c.genero === 'masculino');
-      const mulheres = jogadores.filter(c => c.genero === 'feminino');
-      
-      function shuffle(arr) {
-        for (let i = arr.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [arr[i], arr[j]] = [arr[j], arr[i]];
-        }
-      }
-      shuffle([...homens]);
-      shuffle([...mulheres]);
-      
-      // Intercala M-H
-      const combinado = [];
-      let mi = 0, hi = 0;
-      while (mi < mulheres.length || hi < homens.length) {
-        if (mi < mulheres.length) combinado.push(mulheres[mi++]);
-        if (hi < homens.length) combinado.push(homens[hi++]);
-      }
-      
-      // Round-robin perfeito
-      const times = Array(NUM_TIMES).fill().map(() => []);
-      combinado.forEach((jogador, idx) => {
-        const timeIdx = idx % NUM_TIMES;
-        if (times[timeIdx].length < MAX_POR_TIME) {
-          times[timeIdx].push(jogador);
-        }
-      });
-      
-      // Vaga livre SOMENTE se <24
-      if (confirmados.length < MAX_JOGADORES) {
-        times.forEach(time => {
-          while (time.length < MAX_POR_TIME) {
-            time.push({ nome: 'Vaga Livre', genero: '', tipo: '' });
-          }
-        });
-      }
-      
-      return times;
+function sortearTimes(confirmados) {
+  // Criar cópia independente dos dados
+  confirmados = JSON.parse(JSON.stringify(confirmados));
+  
+  // Garantir que todos têm gênero definido
+  confirmados.forEach(c => {
+    if (!c.genero) c.genero = 'masculino';
+  });
+  
+  // Separar por gênero
+  const homens = confirmados.filter(c => c.genero === 'masculino');
+  const mulheres = confirmados.filter(c => c.genero === 'feminino');
+  
+  // Função de embaralhamento (Fisher-Yates)
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
     }
+    return arr;
+  }
+  
+  // EMBARALHAR A CADA SORTEIO
+  shuffle(homens);
+  shuffle(mulheres);
+  
+  // Criar 4 times vazios
+  const times = [[], [], [], []];
+  
+  // DISTRIBUIR MULHERES DE FORMA EQUILIBRADA (round-robin)
+  mulheres.forEach((mulher, index) => {
+    times[index % 4].push(mulher);
+  });
+  
+  // DISTRIBUIR HOMENS DE FORMA EQUILIBRADA (round-robin)
+  homens.forEach((homem, index) => {
+    times[index % 4].push(homem);
+  });
+  
+  // Preencher com "Vaga Livre" para igualar tamanhos
+  const maxSize = Math.max(...times.map(t => t.length));
+  for (let i = 0; i < 4; i++) {
+    while (times[i].length < maxSize) {
+      times[i].push({nome: 'Vaga Livre', genero: '', tipo: ''});
+    }
+  }
+  
+  return times;
+}
     
     // RENDER TIMES COM DRAG AND DROP PARA ADMIN
     function renderizarTimes() {

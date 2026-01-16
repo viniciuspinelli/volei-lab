@@ -312,13 +312,16 @@ app.get('/estatisticas', async (req, res) => {
     });
     
     // CORREÇÃO AQUI - garantir que o número seja convertido corretamente
-    const rankingFormatado = ranking.rows.map(row => ({
-      nome: row.nome,
-      tipo: row.tipo,
-      genero: row.genero,
-      totalconfirmacoes: parseInt(row.total_confirmacoes) || 0,  // ADICIONAR || 0
-      ultimaconfirmacao: row.ultima_confirmacao
-    }));
+const rankingFormatado = ranking.rows.map(row => ({
+  nome: row.nome,
+  tipo: row.tipo,
+  genero: row.genero,
+  totalconfirmacoes: parseInt(row.total_confirmacoes) || 0,  // converter de total_confirmacoes para totalconfirmacoes
+  total_confirmacoes: parseInt(row.total_confirmacoes) || 0,  // manter ambos por compatibilidade
+  ultimaconfirmacao: row.ultima_confirmacao,
+  ultima_confirmacao: row.ultima_confirmacao  // manter ambos
+}));
+
     
     res.json({
       ranking: rankingFormatado,

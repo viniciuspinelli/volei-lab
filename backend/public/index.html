@@ -125,10 +125,20 @@
     .mensagem.sucesso { background: rgba(52,211,153,0.1); color: #34d399; }
     .mensagem.erro { background: rgba(239,68,68,0.1); color: var(--danger); }
     
+    /* BOTTOM NAV MOBILE */
+    .bottom-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-secondary); border-top: 1px solid rgba(255,255,255,0.05); padding: var(--spacing-sm) 0; z-index: 1000; }
+    .bottom-nav-items { display: flex; justify-content: space-around; align-items: center; }
+    .bottom-nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 16px; color: var(--text-muted); text-decoration: none; font-size: 11px; font-weight: 500; border: none; background: transparent; cursor: pointer; transition: color 0.2s; }
+    .bottom-nav-item .icon { font-size: 22px; }
+    .bottom-nav-item.active { color: var(--accent); }
+    .bottom-nav-item.admin-logged { color: var(--accent); }
+    
     /* RESPONSIVO */
     @media (max-width: 768px) {
       .sidebar { display: none; }
-      .main-content { margin-left: 0; padding: var(--spacing-md); }
+      .main-content { margin-left: 0; padding: var(--spacing-md); padding-bottom: 100px; }
+      .bottom-nav { display: block; }
+      .page-title { font-size: 22px; }
       .times-grid { grid-template-columns: 1fr; }
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
     }
@@ -136,7 +146,7 @@
 </head>
 <body>
   <div class="app-container">
-    <!-- Sidebar -->
+    <!-- Sidebar Desktop -->
     <aside class="sidebar">
       <div class="sidebar-logo">
         <span class="part1">PAGOU</span>
@@ -260,6 +270,32 @@
       </section>
     </main>
   </div>
+
+  <!-- Bottom Nav Mobile -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-items">
+      <button class="bottom-nav-item active" data-page="confirmados">
+        <span class="icon">📋</span>
+        <span>Confirmados</span>
+      </button>
+      <button class="bottom-nav-item" data-page="sorteio">
+        <span class="icon">🎲</span>
+        <span>Sorteio</span>
+      </button>
+      <button class="bottom-nav-item" data-page="estatisticas">
+        <span class="icon">📊</span>
+        <span>Estatísticas</span>
+      </button>
+      <button class="bottom-nav-item" id="btnAdminMobile" onclick="abrirLogin()">
+        <span class="icon">🔐</span>
+        <span>Admin</span>
+      </button>
+      <button class="bottom-nav-item admin-logged" id="btnLogoutMobile" onclick="fazerLogout()" style="display:none;">
+        <span class="icon">🚪</span>
+        <span>Sair</span>
+      </button>
+    </div>
+  </nav>
 
   <!-- Modal Login Admin -->
   <div class="login-modal" id="loginModal">
@@ -631,8 +667,12 @@
     }
     
     function atualizarUIAdmin() {
+      // Sidebar desktop
       document.getElementById('btnAdminSidebar').style.display = isAdmin ? 'none' : 'flex';
       document.getElementById('btnLogoutSidebar').style.display = isAdmin ? 'flex' : 'none';
+      // Bottom nav mobile
+      document.getElementById('btnAdminMobile').style.display = isAdmin ? 'none' : 'flex';
+      document.getElementById('btnLogoutMobile').style.display = isAdmin ? 'flex' : 'none';
       // Re-renderiza times se existir sorteio ativo para ativar/desativar drag
       if (window.ultimoSorteio) renderizarTimes();
     }

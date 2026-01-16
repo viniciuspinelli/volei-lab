@@ -107,9 +107,12 @@
     .stat-value { font-size: 36px; font-weight: 700; color: var(--accent); }
     .stat-label { font-size: 13px; color: var(--text-muted); margin-top: var(--spacing-xs); }
     .ranking-list { list-style: none; }
-    .ranking-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .ranking-item { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.2s; }
+    .ranking-item:hover { background: rgba(255,255,255,0.02); }
+    .ranking-item .ranking-left { display: flex; align-items: center; }
     .ranking-item .pos { width: 30px; height: 30px; background: rgba(255,107,0,0.15); color: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; margin-right: var(--spacing-md); }
     .ranking-item .pos.top-3 { background: var(--accent); color: #000; }
+    .ranking-item .ranking-right { display: flex; align-items: center; gap: var(--spacing-md); }
     .ranking-item .count { color: var(--text-muted); font-size: 14px; }
     .empty-state { text-align: center; padding: var(--spacing-xl); color: var(--text-muted); }
     
@@ -681,7 +684,36 @@
       if (window.ultimoSorteio) renderizarTimes();
     }
     
-    // ESTATÍSTICAS - CORRIGIDO CAMPO total_confirmacoes
+    // REMOVER PESSOA DAS ESTATÍSTICAS (ADMIN)
+    async function removerDasEstatisticas(nome) {
+      if (!confirm(`Remover "${nome}" das estatísticas permanentemente?\n\nIsso apagará TODAS as confirmações dessa pessoa.`)) return;
+      
+      try {
+        const headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminToken}`
+        };
+        
+        const res = await fetch(`/estatisticas/pessoa/${encodeURIComponent(nome)}`, {
+          method: 'DELETE',
+          headers
+        });
+        
+        const data = await res.json();
+        
+        if (data.sucesso || res.ok) {
+          mostrarMensagem('Pessoa removida das estatísticas!', 'sucesso');
+          carregarEstatisticas();
+        } else {
+          throw new Error(data.erro || 'Erro ao remover pessoa.');
+        }
+      } catch (err) {
+        console.error('Erro ao remover:', err);
+        mostrarMensagem(err.message || 'Erro ao remover pessoa.', 'erro');
+      }
+    }
+    
+    // ESTATÍSTICAS COM BOTÃO REMOVER ADMIN
     async function carregarEstatisticas() {
       try {
         const headers = { 'Content-Type': 'application/json' };
@@ -719,15 +751,38 @@
         document.getElementById('statMensalistas').textContent = mensalistas;
         document.getElementById('statAvulsos').textContent = avulsos;
         
-        // Renderizar ranking
+        // Renderizar ranking COM BOTÃO EXCLUIR ADMIN
         const ul = document.getElementById('rankingList');
         ul.innerHTML = '';
         ranking.forEach((r, i) => {
           const li = document.createElement('li');
           li.className = 'ranking-item';
-          // CORRIGIDO: usar total_confirmacoes (com underscore)
           const presencas = parseInt(r.total_confirmacoes || 0, 10);
-          li.innerHTML = `<div style="display:flex;align-items:center;"><span class="pos ${i < 3 ? 'top-3' : ''}">${i + 1}</span><span>${r.nome}</span></div><span class="count">${presencas} presenças</span>`;
+          
+          const leftDiv = document.createElement('div');
+          leftDiv.className = 'ranking-left';
+          leftDiv.innerHTML = `<span class="pos ${i < 3 ? 'top-3' : ''}">${i + 1}</span><span>${r.nome}</span>`;
+          
+          const rightDiv = document.createElement('div');
+          rightDiv.className = 'ranking-right';
+          
+          const countSpan = document.createElement('span');
+          countSpan.className = 'count';
+          countSpan.textContent = `${presencas} presenças`;
+          rightDiv.appendChild(countSpan);
+          
+          // Botão X somente se admin
+          if (isAdmin) {
+            const btnRemove = document.createElement('button');
+            btnRemove.className = 'btn-remove';
+            btnRemove.textContent = '✕';
+            btnRemove.title = `Remover ${r.nome} das estatísticas`;
+            btnRemove.addEventListener('click', () => removerDasEstatisticas(r.nome));
+            rightDiv.appendChild(btnRemove);
+          }
+          
+          li.appendChild(leftDiv);
+          li.appendChild(rightDiv);
           ul.appendChild(li);
         });
       } catch (err) {

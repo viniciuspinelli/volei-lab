@@ -171,23 +171,49 @@ function sortearTimes(confirmados) {
 
   // Inicializa times
   const times = Array.from({ length: NUM_TIMES }, () => []);
-
-  // Distribui em round-robin, sempre respeitando MAX_POR_TIME
+  // Distribui sempre para o time com menos pessoas (empate: menor índice)
   for (let i = 0; i < combinado.length; i++) {
     const player = combinado[i];
-    const start = i % NUM_TIMES;
-    let placed = false;
-    // tenta colocar no time start, se cheio tenta próximos circularmente
-    for (let k = 0; k < NUM_TIMES; k++) {
-      const idx = (start + k) % NUM_TIMES;
-      if (times[idx].length < MAX_POR_TIME) {
-        times[idx].push(player);
-        placed = true;
+    // encontra times com tamanho mínimo e menor que MAX_POR_TIME
+    let minSize = Infinity;
+    for (let t = 0; t < NUM_TIMES; t++) {
+      if (times[t].length < minSize && times[t].length < MAX_POR_TIME) {
+        minSize = times[t].length;
+      }
+    }
+    // se nenhum time tem espaço, pare
+    if (minSize === Infinity) break;
+    // coloca no primeiro time que tenha minSize
+    for (let t = 0; t < NUM_TIMES; t++) {
+      if (times[t].length === minSize && times[t].length < MAX_POR_TIME) {
+        times[t].push(player);
         break;
       }
     }
-    // se não colocou (todos cheios), descarta
-    if (!placed) break;
+  }
+
+  // Sanity check: se algum jogador não foi colocado (devido a limite), tente distribuir residuals
+  const assigned = times.reduce((s, t) => s + t.length, 0);
+  if (assigned < combinado.length) {
+    let idx = 0;
+    for (let i = 0; i < combinado.length; i++) {
+      const player = combinado[i];
+      // se já assignado, continue
+      const already = times.some(t => t.includes(player));
+      if (already) continue;
+      // tenta achar time com < MAX_POR_TIME
+      let placed = false;
+      for (let k = 0; k < NUM_TIMES; k++) {
+        const t = (idx + k) % NUM_TIMES;
+        if (times[t].length < MAX_POR_TIME) {
+          times[t].push(player);
+          placed = true;
+          idx = (t + 1) % NUM_TIMES;
+          break;
+        }
+      }
+      if (!placed) break;
+    }
   }
 
   // Preenche com 'Vaga Livre' apenas quando total confirmados for menor que MAX_JOGADORES

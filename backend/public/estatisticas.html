@@ -579,7 +579,8 @@
     }
 
     tbody.innerHTML = dados.map((d, idx) => {
-        const posicao = idx + 1;
+    console.log('DEBUG:', d.nome, '- totalconfirmacoes:', d.totalconfirmacoes, '- total_confirmacoes:', d.total_confirmacoes);
+    const posicao = idx + 1;
         const dataObj = new Date(d.ultimaconfirmacao);
         const dataFormatada = dataObj.toLocaleDateString('pt-BR');
 

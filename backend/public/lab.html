@@ -814,12 +814,29 @@
       </div>
     </nav>
   </div>
+  </div>
+
+  <div id="appVersion" style="position:fixed;left:16px;bottom:12px;color:#9fb3c8;font-size:12px;opacity:0.9"></div>
 
   <script>
     // Steam authentication removed — always show app
     document.addEventListener('DOMContentLoaded', function() {
       document.querySelector('.app-container').style.display = 'flex';
     });
+
+    // Fetch version info and display commit hash
+    (async function(){
+      try {
+        const res = await fetch('/version');
+        const j = await res.json();
+        if (j && (j.commit || j.branch)) {
+          const el = document.getElementById('appVersion');
+          el.textContent = `commit: ${j.commit || 'n/a'} ${j.branch ? '(' + j.branch + ')' : ''}`;
+        }
+      } catch (err) {
+        // ignore
+      }
+    })();
     
     // ====== NAVEGAÇÃO ======
     const navItems = document.querySelectorAll('[data-page]');

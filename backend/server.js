@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const cors = require('cors');
 const path = require('path');
 const { Pool } = require('pg');
+const { exec } = require('child_process');
 const app = express();
 const PORT = 3001;
 
@@ -289,4 +290,16 @@ app.get('/estatisticas', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
+});
+
+// Endpoint para retornar versão/commit atual (útil para confirmar deploys)
+app.get('/version', (req, res) => {
+  // tenta obter commit hash e branch via git
+  exec('git rev-parse --short HEAD', { cwd: __dirname }, (err, stdout) => {
+    const commit = err ? null : (stdout || '').trim();
+    exec('git rev-parse --abbrev-ref HEAD', { cwd: __dirname }, (err2, stdout2) => {
+      const branch = err2 ? null : (stdout2 || '').trim();
+      res.json({ commit, branch });
+    });
+  });
 });

@@ -215,7 +215,7 @@ document.getElementById('sortearTimes').addEventListener('click', function(e) {
     .then(confirmados => {
       const list = Array.isArray(confirmados) ? confirmados : (confirmados.confirmed || []);
       const times = sortearTimes(list);
-      
+
       // Renderiza os times em grid
       let html = '<div class="times-grid">';
       for (let i = 0; i < 4; i++) {
@@ -228,8 +228,10 @@ document.getElementById('sortearTimes').addEventListener('click', function(e) {
         html += '</ul></div>';
       }
       html += '</div>';
+      // Adiciona texto de confirmação de versão
+      html += '<div style="margin-top:16px;color:#34d399;font-weight:bold;">Versão frontend atualizada em 16/01/2026</div>';
       document.getElementById('resultadoSorteio').innerHTML = html;
-      
+
       // Botão de compartilhar no WhatsApp
       let shareBtn = document.getElementById('shareWhatsAppBtn');
       if (!shareBtn) {

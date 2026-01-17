@@ -24,35 +24,18 @@ app.get('/lab', (req, res) => {
   res.sendFile(__dirname + '/public/lab.html');
 });
 
-
 // PostgreSQL connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Criar tabelas se não existirem - COM MIGRAÇÃO AUTOMÁTICA
+// Criar tabelas se não existirem
 async function initDB() {
   const client = await pool.connect();
   
   try {
     await client.query('BEGIN');
-    
-    // Verificar se existe tabela admins antiga (sem a estrutura correta)
-    const checkAdmins = await client.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'admins' AND column_name = 'usuario'
-    `);
-    
-    // Se não existe a coluna usuario, dropar e recriar
-    if (checkAdmins.rows.length === 0) {
-      console.log('Estrutura antiga detectada. Recriando tabelas...');
-      await client.query('DROP TABLE IF EXISTS admin_tokens CASCADE');
-      await client.query('DROP TABLE IF EXISTS admins CASCADE');
-      await client.query('DROP TABLE IF EXISTS confirmados_atual CASCADE');
-      await client.query('DROP TABLE IF EXISTS historico_confirmacoes CASCADE');
-    }
     
     // Criar tabela de confirmados atuais
     await client.query(`
@@ -61,6 +44,7 @@ async function initDB() {
         nome VARCHAR(255) NOT NULL,
         tipo VARCHAR(50) NOT NULL,
         genero VARCHAR(50),
+        tenant_id INTEGER,
         data_confirmacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -72,6 +56,7 @@ async function initDB() {
         nome VARCHAR(255) NOT NULL,
         tipo VARCHAR(50) NOT NULL,
         genero VARCHAR(50),
+        tenant_id INTEGER,
         data_confirmacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -82,6 +67,7 @@ async function initDB() {
         id SERIAL PRIMARY KEY,
         usuario VARCHAR(100) UNIQUE NOT NULL,
         senha_hash VARCHAR(255) NOT NULL,
+        tenant_id INTEGER,
         criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -118,7 +104,8 @@ async function initDB() {
 
 initDB();
 
-// MIDDLEWARE: Extrair tenant do token
+// ==================== MIDDLEWARES ====================
+
 // MIDDLEWARE: Verificar token E tenant
 async function verificarTenant(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
@@ -143,9 +130,13 @@ async function verificarTenant(req, res, next) {
     
     const data = result.rows[0];
     
-    // Se não tem tenant, é admin antigo (migrado)
+    // Se não tem tenant, é admin antigo - permitir mas sem filtro
     if (!data.tenant_id) {
-      return res.status(403).json({ erro: 'Usuário precisa ser associado a um time' });
+      req.adminId = data.admin_id;
+      req.tenantId = null;
+      req.tenantNome = 'Admin Principal';
+      req.whatsappNumber = null;
+      return next();
     }
     
     if (data.status !== 'active') {
@@ -164,175 +155,7 @@ async function verificarTenant(req, res, next) {
   }
 }
 
-// REGISTRAR NOVO TENANT
-app.post('/api/registro', async (req, res) => {
-  const { nome_time, email, senha, nome_usuario, telefone, whatsapp } = req.body;
-  
-  console.log('📝 Tentativa de registro:', { nome_time, email, nome_usuario });
-  
-  if (!nome_time || !email || !senha || !nome_usuario) {
-    console.log('❌ Campos faltando');
-    return res.status(400).json({ erro: 'Preencha todos os campos obrigatórios' });
-  }
-  
-  try {
-    // Verificar se email já existe
-    const emailExists = await pool.query('SELECT id FROM admins WHERE usuario = $1', [email]);
-    if (emailExists.rows.length > 0) {
-      console.log('❌ Email já existe:', email);
-      return res.status(400).json({ erro: 'Email já cadastrado. Use outro email.' });
-    }
-    
-    // Criar subdomain
-    const subdomain = nome_time.toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '') // Remove hífens no início e fim
-      .substring(0, 50);
-    
-    console.log('📌 Subdomain gerado:', subdomain);
-    
-    // Criar tenant
-    const tenantResult = await pool.query(`
-      INSERT INTO tenants (nome, subdomain, whatsapp_number, status, plano)
-      VALUES ($1, $2, $3, 'trial', 'mensal')
-      RETURNING id
-    `, [nome_time, subdomain, whatsapp || telefone]);
-    
-    const tenantId = tenantResult.rows[0].id;
-    console.log('✅ Tenant criado:', tenantId);
-    
-    // Hash da senha
-    const senhaHash = await bcrypt.hash(senha, 10);
-    
-    // Criar admin
-    await pool.query(`
-      INSERT INTO admins (usuario, senha_hash, tenant_id)
-      VALUES ($1, $2, $3)
-    `, [email, senhaHash, tenantId]);
-    
-    console.log('✅ Admin criado');
-    
-    // Criar usuário
-    await pool.query(`
-      INSERT INTO users (tenant_id, email, senha_hash, nome, telefone, role)
-      VALUES ($1, $2, $3, $4, $5, 'tenant_admin')
-    `, [tenantId, email, senhaHash, nome_usuario, telefone]);
-    
-    console.log('✅ User criado');
-    
-    res.json({ 
-      sucesso: true, 
-      mensagem: 'Cadastro realizado com sucesso!',
-      tenant_id: tenantId,
-      subdomain: subdomain
-    });
-    
-  } catch (err) {
-    console.error('❌ Erro no registro:', err.message);
-    console.error('Stack:', err.stack);
-    res.status(500).json({ erro: `Erro ao criar conta: ${err.message}` });
-  }
-});
-
-
-// REGISTRAR NOVO TENANT (público)
-app.post('/registro', async (req, res) => {
-  const { nome_time, email, senha, nome_usuario, telefone } = req.body;
-  
-  try {
-    // Criar tenant
-    const tenantResult = await pool.query(`
-      INSERT INTO tenants (nome, subdomain, status, plano)
-      VALUES ($1, $2, 'trial', 'mensal')
-      RETURNING id
-    `, [nome_time, email.split('@')[0]]); // subdomain baseado no email
-    
-    const tenantId = tenantResult.rows[0].id;
-    
-    // Criar usuário admin do tenant
-    const senhaHash = await bcrypt.hash(senha, 10);
-    await pool.query(`
-      INSERT INTO users (tenant_id, email, senha_hash, nome, telefone, role)
-      VALUES ($1, $2, $3, $4, $5, 'tenant_admin')
-    `, [tenantId, email, senhaHash, nome_usuario, telefone]);
-    
-    // Também criar na tabela admins antiga (compatibilidade)
-    await pool.query(`
-      INSERT INTO admins (usuario, senha_hash, tenant_id)
-      VALUES ($1, $2, $3)
-    `, [email, senhaHash, tenantId]);
-    
-    res.json({ 
-      sucesso: true, 
-      mensagem: 'Cadastro realizado! Faça login para começar.',
-      tenant_id: tenantId 
-    });
-    
-  } catch (err) {
-    console.error('Erro no registro:', err);
-    res.status(500).json({ erro: 'Erro ao criar conta' });
-  }
-});
-
-// ATUALIZAR ROTA DE CONFIRMAÇÃO para usar tenant
-app.post('/confirmar', verificarTenant, async (req, res) => {
-  const { nome, tipo, genero } = req.body;
-  const tenantId = req.tenantId;
-  
-  if (!nome || !tipo || !genero) {
-    return res.status(400).json({ erro: 'Nome, tipo e gênero são obrigatórios' });
-  }
-  
-  try {
-    // Contar apenas confirmados do tenant
-    const countResult = await pool.query(
-      'SELECT COUNT(*) as total FROM confirmados_atual WHERE tenant_id = $1',
-      [tenantId]
-    );
-    
-    const total = parseInt(countResult.rows[0].total);
-    if (total >= 24) {
-      return res.status(400).json({ erro: 'Limite de 24 confirmados atingido!' });
-    }
-    
-    // Salvar com tenant_id
-    const resultAtual = await pool.query(
-      'INSERT INTO confirmados_atual (nome, tipo, genero, tenant_id) VALUES ($1, $2, $3, $4) RETURNING *',
-      [nome, tipo, genero, tenantId]
-    );
-    
-    await pool.query(
-      'INSERT INTO historico_confirmacoes (nome, tipo, genero, tenant_id) VALUES ($1, $2, $3, $4)',
-      [nome, tipo, genero, tenantId]
-    );
-    
-    res.json({ sucesso: true, confirmado: resultAtual.rows[0] });
-  } catch (err) {
-    console.error('Erro ao confirmar:', err);
-    res.status(500).json({ erro: 'Erro ao confirmar presença' });
-  }
-});
-
-// ATUALIZAR ROTA DE LISTAR para usar tenant
-app.get('/confirmados', verificarTenant, async (req, res) => {
-  try {
-    const result = await pool.query(
-      'SELECT * FROM confirmados_atual WHERE tenant_id = $1 ORDER BY data_confirmacao ASC LIMIT 24',
-      [req.tenantId]
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Erro ao listar:', err);
-    res.status(500).json({ erro: 'Erro ao listar confirmados' });
-  }
-});
-
-// Aplicar o mesmo para todas as outras rotas...
-
-
-// MIDDLEWARE: Verificar token admin
+// MIDDLEWARE: Verificar token admin (legado)
 async function verificarAdmin(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
@@ -355,6 +178,92 @@ async function verificarAdmin(req, res, next) {
     return res.status(500).json({ erro: 'Erro ao verificar token' });
   }
 }
+
+// ==================== AUTENTICAÇÃO ====================
+
+// REGISTRAR NOVO TENANT
+app.post('/api/registro', async (req, res) => {
+  const { nome_time, email, senha, nome_usuario, telefone, whatsapp } = req.body;
+  
+  console.log('📝 Tentativa de registro:', { nome_time, email, nome_usuario });
+  
+  if (!nome_time || !email || !senha || !nome_usuario) {
+    console.log('❌ Campos faltando');
+    return res.status(400).json({ erro: 'Preencha todos os campos obrigatórios' });
+  }
+  
+  try {
+    // Verificar se email já existe
+    const emailExists = await pool.query('SELECT id FROM admins WHERE usuario = $1', [email]);
+    if (emailExists.rows.length > 0) {
+      console.log('❌ Email já existe:', email);
+      return res.status(400).json({ erro: 'Email já cadastrado. Use outro email.' });
+    }
+    
+    // Criar subdomain base
+    let subdomainBase = nome_time.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .substring(0, 40);
+    
+    // Garantir subdomain único
+    let subdomain = subdomainBase;
+    let tentativa = 1;
+    let subdomainExists = true;
+    
+    while (subdomainExists && tentativa < 100) {
+      const check = await pool.query('SELECT id FROM tenants WHERE subdomain = $1', [subdomain]);
+      if (check.rows.length === 0) {
+        subdomainExists = false;
+      } else {
+        subdomain = `${subdomainBase}-${tentativa}`;
+        tentativa++;
+      }
+    }
+    
+    console.log('📌 Subdomain único gerado:', subdomain);
+    
+    // Criar tenant
+    const tenantResult = await pool.query(`
+      INSERT INTO tenants (nome, subdomain, whatsapp_number, status, plano)
+      VALUES ($1, $2, $3, 'active', 'mensal')
+      RETURNING id
+    `, [nome_time, subdomain, whatsapp || telefone]);
+    
+    const tenantId = tenantResult.rows[0].id;
+    console.log('✅ Tenant criado:', tenantId);
+    
+    // Hash da senha
+    const senhaHash = await bcrypt.hash(senha, 10);
+    
+    // Criar admin
+    await pool.query(`
+      INSERT INTO admins (usuario, senha_hash, tenant_id)
+      VALUES ($1, $2, $3)
+    `, [email, senhaHash, tenantId]);
+    console.log('✅ Admin criado');
+    
+    // Criar usuário
+    await pool.query(`
+      INSERT INTO users (tenant_id, email, senha_hash, nome, telefone, role)
+      VALUES ($1, $2, $3, $4, $5, 'tenant_admin')
+    `, [tenantId, email, senhaHash, nome_usuario, telefone]);
+    console.log('✅ User criado');
+    
+    res.json({ 
+      sucesso: true, 
+      mensagem: 'Cadastro realizado com sucesso!',
+      tenant_id: tenantId,
+      subdomain: subdomain
+    });
+    
+  } catch (err) {
+    console.error('❌ Erro no registro:', err.message);
+    res.status(500).json({ erro: `Erro ao criar conta: ${err.message}` });
+  }
+});
 
 // LOGIN ADMIN
 app.post('/login', async (req, res) => {
@@ -411,267 +320,67 @@ app.get('/verificar-token', async (req, res) => {
   }
   
   try {
-    const result = await pool.query(
-      'SELECT * FROM admin_tokens WHERE token = $1 AND expira_em > NOW()',
-      [token]
-    );
+    const result = await pool.query(`
+      SELECT at.*, a.tenant_id, t.nome as tenant_nome, t.status
+      FROM admin_tokens at
+      INNER JOIN admins a ON at.admin_id = a.id
+      LEFT JOIN tenants t ON a.tenant_id = t.id
+      WHERE at.token = $1 AND at.expira_em > NOW()
+    `, [token]);
     
-    res.json({ valido: result.rows.length > 0 });
+    if (result.rows.length === 0) {
+      return res.json({ valido: false });
+    }
+    
+    const data = result.rows[0];
+    
+    res.json({ 
+      valido: true,
+      tenant_id: data.tenant_id,
+      tenant_nome: data.tenant_nome || 'Admin Principal',
+      status: data.status || 'active'
+    });
   } catch (err) {
+    console.error('Erro ao verificar token:', err);
     res.json({ valido: false });
   }
 });
 
-// CONFIRMAR PRESENÇA (salva em AMBAS as tabelas)
-app.post('/confirmar', async (req, res) => {
-  const { nome, tipo, genero } = req.body;
-  
-  if (!nome || !tipo || !genero) {
-    return res.status(400).json({ erro: 'Nome, tipo e gênero são obrigatórios' });
-  }
-  
-  try {
-    // Verifica se já tem 24 confirmados
-    const countResult = await pool.query('SELECT COUNT(*) as total FROM confirmados_atual');
-    const total = parseInt(countResult.rows[0].total);
-    
-    if (total >= 24) {
-      return res.status(400).json({ erro: 'Limite de 24 confirmados atingido!' });
-    }
-    
-    // Salvar na lista atual (temporária)
-    const resultAtual = await pool.query(
-      'INSERT INTO confirmados_atual (nome, tipo, genero) VALUES ($1, $2, $3) RETURNING *',
-      [nome, tipo, genero]
-    );
-    
-    // Salvar no histórico (permanente)
-    await pool.query(
-      'INSERT INTO historico_confirmacoes (nome, tipo, genero) VALUES ($1, $2, $3)',
-      [nome, tipo, genero]
-    );
-    
-    res.json({ sucesso: true, confirmado: resultAtual.rows[0] });
-  } catch (err) {
-    console.error('Erro ao confirmar:', err);
-    res.status(500).json({ erro: 'Erro ao confirmar presença' });
-  }
-});
+// ==================== CONFIRMAÇÕES ====================
 
-// LISTAR CONFIRMADOS ATUAIS
-app.get('/confirmados', async (req, res) => {
-  try {
-    const result = await pool.query(
-      'SELECT * FROM confirmados_atual ORDER BY data_confirmacao ASC LIMIT 24'
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Erro ao listar:', err);
-    res.status(500).json({ erro: 'Erro ao listar confirmados' });
-  }
-});
-
-// REMOVER CONFIRMADO ATUAL (não afeta histórico)
-app.delete('/confirmados/:id', async (req, res) => {
-  const { id } = req.params;
-  
-  try {
-    await pool.query('DELETE FROM confirmados_atual WHERE id = $1', [id]);
-    res.json({ sucesso: true });
-  } catch (err) {
-    console.error('Erro ao remover:', err);
-    res.status(500).json({ erro: 'Erro ao remover' });
-  }
-});
-
-// LIMPAR LISTA DE CONFIRMADOS ATUAIS (não afeta histórico)
-app.delete('/confirmados', async (req, res) => {
-  try {
-    await pool.query('DELETE FROM confirmados_atual');
-    res.json({ sucesso: true });
-  } catch (err) {
-    console.error('Erro ao limpar:', err);
-    res.status(500).json({ erro: 'Erro ao limpar lista' });
-  }
-});
-
-// ESTATÍSTICAS (busca do histórico permanente)
-app.get('/estatisticas', async (req, res) => {
-  try {
-    const ranking = await pool.query(`
-      SELECT 
-        nome,
-        tipo,
-        genero,
-        COUNT(*) as total_confirmacoes,
-        MAX(data_confirmacao) as ultima_confirmacao
-      FROM historico_confirmacoes
-      GROUP BY nome, tipo, genero
-      ORDER BY total_confirmacoes DESC, nome ASC
-    `);
-    
-    const totalConfirmacoes = await pool.query(`
-      SELECT COUNT(*) as total FROM historico_confirmacoes
-    `);
-    
-    const pessoasUnicas = await pool.query(`
-      SELECT COUNT(DISTINCT nome) as total FROM historico_confirmacoes
-    `);
-    
-    const total = parseInt(totalConfirmacoes.rows[0].total) || 0;
-    const pessoas = parseInt(pessoasUnicas.rows[0].total) || 1;
-    const media = pessoas > 0 ? (total / pessoas).toFixed(1) : 0;
-    
-    const porGenero = await pool.query(`
-      SELECT 
-        genero,
-        COUNT(*) as total,
-        COUNT(DISTINCT nome) as pessoas
-      FROM historico_confirmacoes
-      GROUP BY genero
-    `);
-    
-    const generoObj = {};
-    porGenero.rows.forEach(row => {
-      generoObj[row.genero] = {
-        total: parseInt(row.total),
-        pessoas: parseInt(row.pessoas)
-      };
-    });
-    
-    // CORREÇÃO AQUI - garantir que o número seja convertido corretamente
-const rankingFormatado = ranking.rows.map(row => ({
-  nome: row.nome,
-  tipo: row.tipo,
-  genero: row.genero,
-  totalconfirmacoes: parseInt(row.total_confirmacoes) || 0,  // converter de total_confirmacoes para totalconfirmacoes
-  total_confirmacoes: parseInt(row.total_confirmacoes) || 0,  // manter ambos por compatibilidade
-  ultimaconfirmacao: row.ultima_confirmacao,
-  ultima_confirmacao: row.ultima_confirmacao  // manter ambos
-}));
-
-    
-    res.json({
-      ranking: rankingFormatado,
-      resumo: {
-        totalConfirmacoes: total,
-        pessoasUnicas: pessoas,
-        mediaConfirmacoes: media
-      },
-      porGenero: generoObj
-    });
-  } catch (err) {
-    console.error('Erro nas estatísticas:', err);
-    res.status(500).json({ erro: 'Erro ao buscar estatísticas' });
-  }
-});
-
-
-// EDITAR NÚMERO DE PRESENÇAS (ADMIN)
-app.put('/estatisticas/pessoa/:nome', verificarAdmin, async (req, res) => {
-  const { nome } = req.params;
-  const { novoTotal } = req.body;
-  
-  if (!novoTotal || novoTotal < 0) {
-    return res.status(400).json({ erro: 'Informe um número válido de presenças' });
-  }
-  
-  try {
-    // Buscar dados atuais da pessoa
-    const pessoa = await pool.query(
-      'SELECT tipo, genero, COUNT(*) as atual FROM historico_confirmacoes WHERE nome = $1 GROUP BY tipo, genero',
-      [nome]
-    );
-    
-    if (pessoa.rows.length === 0) {
-      return res.status(404).json({ erro: 'Pessoa não encontrada' });
-    }
-    
-    const { tipo, genero, atual } = pessoa.rows[0];
-    const atualInt = parseInt(atual);
-    const diferenca = novoTotal - atualInt;
-    
-    if (diferenca > 0) {
-      // Adicionar registros
-      for (let i = 0; i < diferenca; i++) {
-        await pool.query(
-          'INSERT INTO historico_confirmacoes (nome, tipo, genero) VALUES ($1, $2, $3)',
-          [nome, tipo, genero]
-        );
-      }
-    } else if (diferenca < 0) {
-      // Remover registros (os mais recentes)
-      await pool.query(
-        `DELETE FROM historico_confirmacoes 
-         WHERE id IN (
-           SELECT id FROM historico_confirmacoes 
-           WHERE nome = $1 
-           ORDER BY data_confirmacao DESC 
-           LIMIT $2
-         )`,
-        [nome, Math.abs(diferenca)]
-      );
-    }
-    
-    res.json({ 
-      sucesso: true, 
-      anterior: atualInt,
-      novo: novoTotal,
-      diferenca: diferenca
-    });
-  } catch (err) {
-    console.error('Erro ao editar presenças:', err);
-    res.status(500).json({ erro: 'Erro ao editar presenças' });
-  }
-});
-
-// REMOVER PESSOA DO HISTÓRICO (ADMIN APENAS)
-app.delete('/estatisticas/pessoa/:nome', verificarAdmin, async (req, res) => {
-  const { nome } = req.params;
-  
-  try {
-    // Remove TODAS as confirmações dessa pessoa do histórico
-    const result = await pool.query('DELETE FROM historico_confirmacoes WHERE nome = $1', [nome]);
-    
-    // Remove também da lista atual se estiver lá
-    await pool.query('DELETE FROM confirmados_atual WHERE nome = $1', [nome]);
-    
-    res.json({ sucesso: true, removidos: result.rowCount });
-  } catch (err) {
-    console.error('Erro ao remover pessoa:', err);
-    res.status(500).json({ erro: 'Erro ao remover pessoa das estatísticas' });
-  }
-});
-
-// TROCAR SENHA DO ADMIN
-// CONFIRMAR PRESENÇA (usar verificarTenant ao invés de sem proteção)
+// CONFIRMAR PRESENÇA
 app.post('/confirmar', verificarTenant, async (req, res) => {
   const { nome, tipo, genero } = req.body;
-  const tenantId = req.tenantId; // Pega do middleware
+  const tenantId = req.tenantId;
   
   if (!nome || !tipo || !genero) {
     return res.status(400).json({ erro: 'Nome, tipo e gênero são obrigatórios' });
   }
   
   try {
-    // Verifica se já tem 24 confirmados DO TENANT
-    const countResult = await pool.query(
-      'SELECT COUNT(*) as total FROM confirmados_atual WHERE tenant_id = $1',
-      [tenantId]
-    );
+    // Contar confirmados (filtrando por tenant se existir)
+    let countQuery = 'SELECT COUNT(*) as total FROM confirmados_atual';
+    let countParams = [];
+    
+    if (tenantId) {
+      countQuery += ' WHERE tenant_id = $1';
+      countParams = [tenantId];
+    }
+    
+    const countResult = await pool.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].total);
     
     if (total >= 24) {
       return res.status(400).json({ erro: 'Limite de 24 confirmados atingido!' });
     }
     
-    // Salvar na lista atual (temporária) COM tenant_id
+    // Salvar na lista atual
     const resultAtual = await pool.query(
       'INSERT INTO confirmados_atual (nome, tipo, genero, tenant_id) VALUES ($1, $2, $3, $4) RETURNING *',
       [nome, tipo, genero, tenantId]
     );
     
-    // Salvar no histórico (permanente) COM tenant_id
+    // Salvar no histórico
     await pool.query(
       'INSERT INTO historico_confirmacoes (nome, tipo, genero, tenant_id) VALUES ($1, $2, $3, $4)',
       [nome, tipo, genero, tenantId]
@@ -684,13 +393,20 @@ app.post('/confirmar', verificarTenant, async (req, res) => {
   }
 });
 
-// LISTAR CONFIRMADOS ATUAIS (filtrado por tenant)
+// LISTAR CONFIRMADOS
 app.get('/confirmados', verificarTenant, async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM confirmados_atual WHERE tenant_id = $1 ORDER BY data_confirmacao ASC LIMIT 24',
-      [req.tenantId]
-    );
+    let query = 'SELECT * FROM confirmados_atual';
+    let params = [];
+    
+    if (req.tenantId) {
+      query += ' WHERE tenant_id = $1';
+      params = [req.tenantId];
+    }
+    
+    query += ' ORDER BY data_confirmacao ASC LIMIT 24';
+    
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
     console.error('Erro ao listar:', err);
@@ -698,14 +414,20 @@ app.get('/confirmados', verificarTenant, async (req, res) => {
   }
 });
 
-// REMOVER CONFIRMADO (filtrado por tenant)
+// REMOVER CONFIRMADO
 app.delete('/confirmados/:id', verificarTenant, async (req, res) => {
   const { id } = req.params;
+  
   try {
-    await pool.query(
-      'DELETE FROM confirmados_atual WHERE id = $1 AND tenant_id = $2',
-      [id, req.tenantId]
-    );
+    let query = 'DELETE FROM confirmados_atual WHERE id = $1';
+    let params = [id];
+    
+    if (req.tenantId) {
+      query += ' AND tenant_id = $2';
+      params.push(req.tenantId);
+    }
+    
+    await pool.query(query, params);
     res.json({ sucesso: true });
   } catch (err) {
     console.error('Erro ao remover:', err);
@@ -713,10 +435,18 @@ app.delete('/confirmados/:id', verificarTenant, async (req, res) => {
   }
 });
 
-// LIMPAR LISTA (filtrado por tenant)
+// LIMPAR LISTA
 app.delete('/confirmados', verificarTenant, async (req, res) => {
   try {
-    await pool.query('DELETE FROM confirmados_atual WHERE tenant_id = $1', [req.tenantId]);
+    let query = 'DELETE FROM confirmados_atual';
+    let params = [];
+    
+    if (req.tenantId) {
+      query += ' WHERE tenant_id = $1';
+      params = [req.tenantId];
+    }
+    
+    await pool.query(query, params);
     res.json({ sucesso: true });
   } catch (err) {
     console.error('Erro ao limpar:', err);
@@ -724,28 +454,37 @@ app.delete('/confirmados', verificarTenant, async (req, res) => {
   }
 });
 
-// ESTATÍSTICAS (filtrado por tenant)
+// ==================== ESTATÍSTICAS ====================
+
+// ESTATÍSTICAS
 app.get('/estatisticas', verificarTenant, async (req, res) => {
   try {
+    let whereClause = '';
+    let params = [];
+    
+    if (req.tenantId) {
+      whereClause = 'WHERE tenant_id = $1';
+      params = [req.tenantId];
+    }
+    
     const ranking = await pool.query(`
-      SELECT
-        nome, tipo, genero,
+      SELECT nome, tipo, genero,
         COUNT(*) as total_confirmacoes,
         MAX(data_confirmacao) as ultima_confirmacao
       FROM historico_confirmacoes
-      WHERE tenant_id = $1
+      ${whereClause}
       GROUP BY nome, tipo, genero
       ORDER BY total_confirmacoes DESC, nome ASC
-    `, [req.tenantId]);
+    `, params);
     
     const totalConfirmacoes = await pool.query(
-      'SELECT COUNT(*) as total FROM historico_confirmacoes WHERE tenant_id = $1',
-      [req.tenantId]
+      `SELECT COUNT(*) as total FROM historico_confirmacoes ${whereClause}`,
+      params
     );
     
     const pessoasUnicas = await pool.query(
-      'SELECT COUNT(DISTINCT nome) as total FROM historico_confirmacoes WHERE tenant_id = $1',
-      [req.tenantId]
+      `SELECT COUNT(DISTINCT nome) as total FROM historico_confirmacoes ${whereClause}`,
+      params
     );
     
     const total = parseInt(totalConfirmacoes.rows[0].total) || 0;
@@ -755,9 +494,9 @@ app.get('/estatisticas', verificarTenant, async (req, res) => {
     const porGenero = await pool.query(`
       SELECT genero, COUNT(*) as total, COUNT(DISTINCT nome) as pessoas
       FROM historico_confirmacoes
-      WHERE tenant_id = $1
+      ${whereClause}
       GROUP BY genero
-    `, [req.tenantId]);
+    `, params);
     
     const generoObj = {};
     porGenero.rows.forEach(row => {
@@ -791,72 +530,76 @@ app.get('/estatisticas', verificarTenant, async (req, res) => {
     res.status(500).json({ erro: 'Erro ao buscar estatísticas' });
   }
 });
-// ROTA TEMPORÁRIA - Corrigir tabela users
-app.get('/corrigir-users', async (req, res) => {
-  const client = await pool.connect();
+
+// EDITAR NÚMERO DE PRESENÇAS (ADMIN)
+app.put('/estatisticas/pessoa/:nome', verificarAdmin, async (req, res) => {
+  const { nome } = req.params;
+  const { novoTotal } = req.body;
+  
+  if (!novoTotal || novoTotal < 0) {
+    return res.status(400).json({ erro: 'Informe um número válido de presenças' });
+  }
   
   try {
-    res.write('🔄 Verificando estrutura da tabela users...\n\n');
+    const pessoa = await pool.query(
+      'SELECT tipo, genero, COUNT(*) as atual FROM historico_confirmacoes WHERE nome = $1 GROUP BY tipo, genero',
+      [nome]
+    );
     
-    // Ver estrutura atual
-    const columns = await client.query(`
-      SELECT column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_name = 'users'
-      ORDER BY ordinal_position
-    `);
-    
-    res.write('📋 Colunas atuais:\n');
-    columns.rows.forEach(col => {
-      res.write(`  - ${col.column_name} (${col.data_type})\n`);
-    });
-    res.write('\n');
-    
-    // Verificar se senha_hash existe
-    const hasSenhaHash = columns.rows.some(col => col.column_name === 'senha_hash');
-    
-    if (!hasSenhaHash) {
-      res.write('❌ Coluna senha_hash não existe. Recriando tabela...\n\n');
-      
-      // Dropar e recriar
-      await client.query('DROP TABLE IF EXISTS users CASCADE');
-      res.write('✅ Tabela antiga removida\n');
-      
-      await client.query(`
-        CREATE TABLE users (
-          id SERIAL PRIMARY KEY,
-          tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-          email VARCHAR(100) UNIQUE NOT NULL,
-          senha_hash VARCHAR(255) NOT NULL,
-          nome VARCHAR(100) NOT NULL,
-          telefone VARCHAR(20),
-          role VARCHAR(20) DEFAULT 'tenant_admin' CHECK (role IN ('super_admin', 'tenant_admin', 'member')),
-          ativo BOOLEAN DEFAULT true,
-          criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          ultimo_login TIMESTAMP
-        )
-      `);
-      res.write('✅ Tabela users recriada corretamente\n');
-      
-      await client.query('CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id)');
-      await client.query('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
-      res.write('✅ Índices criados\n\n');
-      
-    } else {
-      res.write('✅ Tabela users já está correta!\n\n');
+    if (pessoa.rows.length === 0) {
+      return res.status(404).json({ erro: 'Pessoa não encontrada' });
     }
     
-    res.write('🎉 Correção concluída! Pode remover esta rota agora.\n');
-    res.end();
+    const { tipo, genero, atual } = pessoa.rows[0];
+    const atualInt = parseInt(atual);
+    const diferenca = novoTotal - atualInt;
     
+    if (diferenca > 0) {
+      for (let i = 0; i < diferenca; i++) {
+        await pool.query(
+          'INSERT INTO historico_confirmacoes (nome, tipo, genero) VALUES ($1, $2, $3)',
+          [nome, tipo, genero]
+        );
+      }
+    } else if (diferenca < 0) {
+      await pool.query(
+        `DELETE FROM historico_confirmacoes 
+         WHERE id IN (
+           SELECT id FROM historico_confirmacoes 
+           WHERE nome = $1 
+           ORDER BY data_confirmacao DESC 
+           LIMIT $2
+         )`,
+        [nome, Math.abs(diferenca)]
+      );
+    }
+    
+    res.json({ 
+      sucesso: true, 
+      anterior: atualInt,
+      novo: novoTotal,
+      diferenca: diferenca
+    });
   } catch (err) {
-    res.write(`❌ Erro: ${err.message}\n`);
-    res.end();
-  } finally {
-    client.release();
+    console.error('Erro ao editar presenças:', err);
+    res.status(500).json({ erro: 'Erro ao editar presenças' });
   }
 });
 
+// REMOVER PESSOA DO HISTÓRICO
+app.delete('/estatisticas/pessoa/:nome', verificarAdmin, async (req, res) => {
+  const { nome } = req.params;
+  
+  try {
+    const result = await pool.query('DELETE FROM historico_confirmacoes WHERE nome = $1', [nome]);
+    await pool.query('DELETE FROM confirmados_atual WHERE nome = $1', [nome]);
+    
+    res.json({ sucesso: true, removidos: result.rowCount });
+  } catch (err) {
+    console.error('Erro ao remover pessoa:', err);
+    res.status(500).json({ erro: 'Erro ao remover pessoa das estatísticas' });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);

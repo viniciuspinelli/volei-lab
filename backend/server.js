@@ -104,6 +104,139 @@ async function initDB() {
 
 initDB();
 
+// MIDDLEWARE: Extrair tenant do token
+async function verificarTenant(req, res, next) {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (!token) {
+    return res.status(401).json({ erro: 'Token não fornecido' });
+  }
+  
+  try {
+    const result = await pool.query(`
+      SELECT at.admin_id, a.tenant_id, t.status, t.nome as tenant_nome
+      FROM admin_tokens at
+      INNER JOIN admins a ON at.admin_id = a.id
+      INNER JOIN tenants t ON a.tenant_id = t.id
+      WHERE at.token = $1 AND at.expira_em > NOW()
+    `, [token]);
+    
+    if (result.rows.length === 0) {
+      return res.status(401).json({ erro: 'Token inválido ou expirado' });
+    }
+    
+    const data = result.rows[0];
+    
+    if (data.status !== 'active') {
+      return res.status(403).json({ erro: 'Assinatura inativa. Entre em contato.' });
+    }
+    
+    req.adminId = data.admin_id;
+    req.tenantId = data.tenant_id;
+    req.tenantNome = data.tenant_nome;
+    
+    next();
+  } catch (err) {
+    console.error('Erro ao verificar tenant:', err);
+    return res.status(500).json({ erro: 'Erro ao verificar token' });
+  }
+}
+
+// REGISTRAR NOVO TENANT (público)
+app.post('/registro', async (req, res) => {
+  const { nome_time, email, senha, nome_usuario, telefone } = req.body;
+  
+  try {
+    // Criar tenant
+    const tenantResult = await pool.query(`
+      INSERT INTO tenants (nome, subdomain, status, plano)
+      VALUES ($1, $2, 'trial', 'mensal')
+      RETURNING id
+    `, [nome_time, email.split('@')[0]]); // subdomain baseado no email
+    
+    const tenantId = tenantResult.rows[0].id;
+    
+    // Criar usuário admin do tenant
+    const senhaHash = await bcrypt.hash(senha, 10);
+    await pool.query(`
+      INSERT INTO users (tenant_id, email, senha_hash, nome, telefone, role)
+      VALUES ($1, $2, $3, $4, $5, 'tenant_admin')
+    `, [tenantId, email, senhaHash, nome_usuario, telefone]);
+    
+    // Também criar na tabela admins antiga (compatibilidade)
+    await pool.query(`
+      INSERT INTO admins (usuario, senha_hash, tenant_id)
+      VALUES ($1, $2, $3)
+    `, [email, senhaHash, tenantId]);
+    
+    res.json({ 
+      sucesso: true, 
+      mensagem: 'Cadastro realizado! Faça login para começar.',
+      tenant_id: tenantId 
+    });
+    
+  } catch (err) {
+    console.error('Erro no registro:', err);
+    res.status(500).json({ erro: 'Erro ao criar conta' });
+  }
+});
+
+// ATUALIZAR ROTA DE CONFIRMAÇÃO para usar tenant
+app.post('/confirmar', verificarTenant, async (req, res) => {
+  const { nome, tipo, genero } = req.body;
+  const tenantId = req.tenantId;
+  
+  if (!nome || !tipo || !genero) {
+    return res.status(400).json({ erro: 'Nome, tipo e gênero são obrigatórios' });
+  }
+  
+  try {
+    // Contar apenas confirmados do tenant
+    const countResult = await pool.query(
+      'SELECT COUNT(*) as total FROM confirmados_atual WHERE tenant_id = $1',
+      [tenantId]
+    );
+    
+    const total = parseInt(countResult.rows[0].total);
+    if (total >= 24) {
+      return res.status(400).json({ erro: 'Limite de 24 confirmados atingido!' });
+    }
+    
+    // Salvar com tenant_id
+    const resultAtual = await pool.query(
+      'INSERT INTO confirmados_atual (nome, tipo, genero, tenant_id) VALUES ($1, $2, $3, $4) RETURNING *',
+      [nome, tipo, genero, tenantId]
+    );
+    
+    await pool.query(
+      'INSERT INTO historico_confirmacoes (nome, tipo, genero, tenant_id) VALUES ($1, $2, $3, $4)',
+      [nome, tipo, genero, tenantId]
+    );
+    
+    res.json({ sucesso: true, confirmado: resultAtual.rows[0] });
+  } catch (err) {
+    console.error('Erro ao confirmar:', err);
+    res.status(500).json({ erro: 'Erro ao confirmar presença' });
+  }
+});
+
+// ATUALIZAR ROTA DE LISTAR para usar tenant
+app.get('/confirmados', verificarTenant, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM confirmados_atual WHERE tenant_id = $1 ORDER BY data_confirmacao ASC LIMIT 24',
+      [req.tenantId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Erro ao listar:', err);
+    res.status(500).json({ erro: 'Erro ao listar confirmados' });
+  }
+});
+
+// Aplicar o mesmo para todas as outras rotas...
+
+
 // MIDDLEWARE: Verificar token admin
 async function verificarAdmin(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');

@@ -16,47 +16,35 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Criar tabelas se não existirem - COM MIGRAÇÃO AUTOMÁTICA
+// Criar tabelas se não existirem
 async function initDB() {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     
-    // Verificar se existe tabela admins antiga (sem a estrutura correta)
-    const checkAdmins = await client.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'admins' AND column_name = 'usuario'
-    `);
-    
-    // Se não existe a coluna usuario, dropar e recriar
-    if (checkAdmins.rows.length === 0) {
-      console.log('Estrutura antiga detectada. Recriando tabelas...');
-      await client.query('DROP TABLE IF EXISTS admin_tokens CASCADE');
-      await client.query('DROP TABLE IF EXISTS admins CASCADE');
-      await client.query('DROP TABLE IF EXISTS confirmados_atual CASCADE');
-      await client.query('DROP TABLE IF EXISTS historico_confirmacoes CASCADE');
-    }
-    
-    // Criar tabela de confirmados atuais
+    // Criar tabela de confirmados atuais com tenant_id
     await client.query(`
       CREATE TABLE IF NOT EXISTS confirmados_atual (
         id SERIAL PRIMARY KEY,
+        tenant_id INTEGER NOT NULL,
         nome VARCHAR(255) NOT NULL,
         tipo VARCHAR(50) NOT NULL,
         genero VARCHAR(50),
-        data_confirmacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        data_confirmacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
       )
     `);
     
-    // Criar tabela de histórico
+    // Criar tabela de histórico com tenant_id
     await client.query(`
       CREATE TABLE IF NOT EXISTS historico_confirmacoes (
         id SERIAL PRIMARY KEY,
+        tenant_id INTEGER NOT NULL,
         nome VARCHAR(255) NOT NULL,
         tipo VARCHAR(50) NOT NULL,
         genero VARCHAR(50),
-        data_confirmacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        data_confirmacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
       )
     `);
     
@@ -64,9 +52,11 @@ async function initDB() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS admins (
         id SERIAL PRIMARY KEY,
+        tenant_id INTEGER UNIQUE,
         usuario VARCHAR(100) UNIQUE NOT NULL,
         senha_hash VARCHAR(255) NOT NULL,
-        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
       )
     `);
     
@@ -80,16 +70,12 @@ async function initDB() {
       )
     `);
     
+    // Criar índices
+    await client.query('CREATE INDEX IF NOT EXISTS idx_confirmados_tenant ON confirmados_atual(tenant_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_historico_tenant ON historico_confirmacoes(tenant_id)');
+    
     await client.query('COMMIT');
     console.log('✅ Tabelas criadas/verificadas com sucesso!');
-    
-    // Criar admin padrão se não existir
-    const adminExists = await client.query('SELECT * FROM admins WHERE usuario = $1', ['admin']);
-    if (adminExists.rows.length === 0) {
-      const senhaHash = await bcrypt.hash('admin123', 10);
-      await client.query('INSERT INTO admins (usuario, senha_hash) VALUES ($1, $2)', ['admin', senhaHash]);
-      console.log('✅ Admin padrão criado: admin/admin123');
-    }
     
   } catch (err) {
     await client.query('ROLLBACK');
@@ -102,26 +88,40 @@ async function initDB() {
 
 initDB();
 
-// ==================== MIDDLEWARE: VERIFICAR STATUS DO TENANT ====================
-async function verificarStatusTenant(req, res, next) {
-  // Pular verificação para rotas admin
-  if (req.path.startsWith('/api/admin') || req.path === '/admin-panel.html' || req.path === '/test-update.html') {
+// ==================== MIDDLEWARE: EXTRAIR TENANT_ID DA SESSÃO ====================
+// Para desenvolvimento, usar tenant_id = 1 por padrão
+// Em produção, isso viria do subdomain ou autenticação
+function extrairTenantId(req, res, next) {
+  // Para rotas admin, não precisa de tenant_id
+  if (req.path.startsWith('/api/admin') || req.path === '/admin-panel.html') {
     return next();
   }
   
-  // Extrair subdomain do host (preparado para multitenancy)
-  const host = req.hostname;
-  const subdomain = host.split('.')[0];
+  // Por enquanto, usar tenant_id = 1 fixo (para desenvolvimento)
+  // Futuramente: extrair do subdomain ou da sessão
+  req.tenantId = 1;
+  next();
+}
+
+// ==================== MIDDLEWARE: VERIFICAR STATUS DO TENANT ====================
+async function verificarStatusTenant(req, res, next) {
+  // Pular verificação para rotas admin e arquivos estáticos
+  if (req.path.startsWith('/api/admin') || 
+      req.path === '/admin-panel.html' || 
+      req.path === '/test-update.html' ||
+      req.path.match(/\.(css|js|jpg|png|gif|ico)$/)) {
+    return next();
+  }
   
-  // Para desenvolvimento/teste, usar tenant ID 1 por padrão
-  // Quando implementar subdomains reais, descomentar a lógica de subdomain
-  let tenantId = 1; // ID padrão para testes
+  // Se não tem tenant_id, deixar passar (será tratado depois)
+  if (!req.tenantId) {
+    return next();
+  }
   
   try {
-    // Buscar tenant pelo ID (ou subdomain quando implementar)
     const result = await pool.query(
       'SELECT status FROM tenants WHERE id = $1',
-      [tenantId]
+      [req.tenantId]
     );
     
     if (result.rows.length === 0) {
@@ -143,24 +143,10 @@ async function verificarStatusTenant(req, res, next) {
               margin: 0;
               padding: 20px;
             }
-            .container {
-              text-align: center;
-              max-width: 500px;
-            }
-            h1 {
-              font-size: 72px;
-              margin-bottom: 20px;
-              color: #ff6b00;
-            }
-            h2 {
-              font-size: 28px;
-              margin-bottom: 16px;
-            }
-            p {
-              color: #999;
-              font-size: 16px;
-              line-height: 1.6;
-            }
+            .container { text-align: center; max-width: 500px; }
+            h1 { font-size: 72px; margin-bottom: 20px; color: #ff6b00; }
+            h2 { font-size: 28px; margin-bottom: 16px; }
+            p { color: #999; font-size: 16px; line-height: 1.6; }
           </style>
         </head>
         <body>
@@ -196,25 +182,10 @@ async function verificarStatusTenant(req, res, next) {
               margin: 0;
               padding: 20px;
             }
-            .container {
-              text-align: center;
-              max-width: 500px;
-            }
-            h1 {
-              font-size: 72px;
-              margin-bottom: 20px;
-              color: #ef4444;
-            }
-            h2 {
-              font-size: 28px;
-              margin-bottom: 16px;
-            }
-            p {
-              color: #999;
-              font-size: 16px;
-              line-height: 1.6;
-              margin-bottom: 12px;
-            }
+            .container { text-align: center; max-width: 500px; }
+            h1 { font-size: 72px; margin-bottom: 20px; color: #ef4444; }
+            h2 { font-size: 28px; margin-bottom: 16px; }
+            p { color: #999; font-size: 16px; line-height: 1.6; margin-bottom: 12px; }
             .contact {
               margin-top: 24px;
               padding: 16px;
@@ -234,7 +205,7 @@ async function verificarStatusTenant(req, res, next) {
             <h1>🔒</h1>
             <h2>Acesso Bloqueado</h2>
             <p>Este time está com o acesso desativado.</p>
-            <p>Entre em contato com o suporte para mais informações.</p>
+            <p>Entre em contato com o suporte para reativar.</p>
             <div class="contact">
               <p>📧 Suporte: <a href="mailto:suporte@voleilab.com">suporte@voleilab.com</a></p>
             </div>
@@ -244,7 +215,7 @@ async function verificarStatusTenant(req, res, next) {
       `);
     }
     
-    // Verificar se está pendente (aguardando pagamento)
+    // Verificar se está pendente
     if (tenant.status === 'pending') {
       return res.status(402).send(`
         <!DOCTYPE html>
@@ -264,25 +235,10 @@ async function verificarStatusTenant(req, res, next) {
               margin: 0;
               padding: 20px;
             }
-            .container {
-              text-align: center;
-              max-width: 500px;
-            }
-            h1 {
-              font-size: 72px;
-              margin-bottom: 20px;
-              color: #fbbf24;
-            }
-            h2 {
-              font-size: 28px;
-              margin-bottom: 16px;
-            }
-            p {
-              color: #999;
-              font-size: 16px;
-              line-height: 1.6;
-              margin-bottom: 12px;
-            }
+            .container { text-align: center; max-width: 500px; }
+            h1 { font-size: 72px; margin-bottom: 20px; color: #fbbf24; }
+            h2 { font-size: 28px; margin-bottom: 16px; }
+            p { color: #999; font-size: 16px; line-height: 1.6; margin-bottom: 12px; }
             .contact {
               margin-top: 24px;
               padding: 16px;
@@ -302,9 +258,9 @@ async function verificarStatusTenant(req, res, next) {
             <h1>⏳</h1>
             <h2>Pagamento Pendente</h2>
             <p>Seu time está aguardando confirmação de pagamento.</p>
-            <p>Complete o pagamento para liberar o acesso completo.</p>
+            <p>Complete o pagamento para liberar o acesso.</p>
             <div class="contact">
-              <p>💳 Dúvidas sobre pagamento: <a href="mailto:financeiro@voleilab.com">financeiro@voleilab.com</a></p>
+              <p>💳 Financeiro: <a href="mailto:financeiro@voleilab.com">financeiro@voleilab.com</a></p>
             </div>
           </div>
         </body>
@@ -345,7 +301,7 @@ async function verificarAdmin(req, res, next) {
   }
 }
 
-// ==================== VERIFICAR MASTER ADMIN ====================
+// ==================== MIDDLEWARE: Master Admin ====================
 function verificarMasterAdmin(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   
@@ -356,7 +312,8 @@ function verificarMasterAdmin(req, res, next) {
   return res.status(401).json({ erro: 'Acesso negado' });
 }
 
-// Aplicar middleware de status ANTES de servir arquivos estáticos
+// Aplicar middlewares na ordem correta
+app.use(extrairTenantId);
 app.use(verificarStatusTenant);
 app.use(express.static('public'));
 
@@ -429,7 +386,6 @@ app.put('/api/admin/tenants/:id', verificarMasterAdmin, async (req, res) => {
   
   try {
     // 1. Atualizar dados do tenant
-    console.log('Atualizando tenant...');
     const tenantResult = await pool.query(`
       UPDATE tenants 
       SET nome = $1, 
@@ -444,9 +400,6 @@ app.put('/api/admin/tenants/:id', verificarMasterAdmin, async (req, res) => {
     
     // 2. Atualizar email do admin apenas se mudou
     if (email) {
-      console.log('Verificando se email mudou...');
-      
-      // Buscar email atual do admin
       const adminAtual = await pool.query(`
         SELECT usuario 
         FROM admins 
@@ -454,25 +407,17 @@ app.put('/api/admin/tenants/:id', verificarMasterAdmin, async (req, res) => {
       `, [tenantId]);
       
       const emailAtual = adminAtual.rows[0]?.usuario;
-      console.log('Email atual:', emailAtual, '| Email novo:', email);
       
-      // Só atualizar se for diferente
       if (emailAtual !== email) {
-        console.log('Email mudou, atualizando...');
-        const adminResult = await pool.query(`
+        await pool.query(`
           UPDATE admins 
           SET usuario = $1 
           WHERE tenant_id = $2
-          RETURNING *
         `, [email, tenantId]);
-        
-        console.log('Admin atualizado:', adminResult.rows[0]);
-      } else {
-        console.log('Email não mudou, mantendo o atual');
       }
     }
     
-    console.log('✅ Atualização concluída com sucesso!');
+    console.log('✅ Atualização concluída!');
     
     res.json({ 
       sucesso: true, 
@@ -481,102 +426,46 @@ app.put('/api/admin/tenants/:id', verificarMasterAdmin, async (req, res) => {
     });
   } catch (err) {
     console.error('❌ Erro ao atualizar tenant:', err);
-    console.error('Stack:', err.stack);
-    
     res.status(500).json({ 
       erro: 'Erro ao atualizar', 
-      detalhes: err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+      detalhes: err.message
     });
   }
 });
 
-// ==================== LOGIN ADMIN ====================
-app.post('/login', async (req, res) => {
-  const { usuario, senha } = req.body;
-  try {
-    const result = await pool.query('SELECT * FROM admins WHERE usuario = $1', [usuario]);
-    if (result.rows.length === 0) {
-      return res.status(401).json({ sucesso: false, erro: 'Usuário não encontrado' });
-    }
-    
-    const admin = result.rows[0];
-    const senhaValida = await bcrypt.compare(senha, admin.senha_hash);
-    if (!senhaValida) {
-      return res.status(401).json({ sucesso: false, erro: 'Senha incorreta' });
-    }
-    
-    // Gerar token
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiraEm = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
-    await pool.query(
-      'INSERT INTO admin_tokens (token, admin_id, expira_em) VALUES ($1, $2, $3)',
-      [token, admin.id, expiraEm]
-    );
-    
-    res.json({ sucesso: true, token });
-  } catch (err) {
-    console.error('Erro no login:', err);
-    res.status(500).json({ sucesso: false, erro: 'Erro no servidor' });
-  }
-});
+// ==================== ROTAS PRINCIPAIS COM TENANT_ID ====================
 
-// LOGOUT ADMIN
-app.post('/logout', async (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  try {
-    await pool.query('DELETE FROM admin_tokens WHERE token = $1', [token]);
-    res.json({ sucesso: true });
-  } catch (err) {
-    res.status(500).json({ sucesso: false, erro: 'Erro ao fazer logout' });
-  }
-});
-
-// VERIFICAR TOKEN
-app.get('/verificar-token', async (req, res) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) {
-    return res.json({ valido: false });
-  }
-  
-  try {
-    const result = await pool.query(
-      'SELECT * FROM admin_tokens WHERE token = $1 AND expira_em > NOW()',
-      [token]
-    );
-    res.json({ valido: result.rows.length > 0 });
-  } catch (err) {
-    res.json({ valido: false });
-  }
-});
-
-// ==================== ROTAS PRINCIPAIS (COM VERIFICAÇÃO DE STATUS) ====================
-
-// CONFIRMAR PRESENÇA (salva em AMBAS as tabelas)
-app.post('/confirmar', verificarStatusTenant, async (req, res) => {
+// CONFIRMAR PRESENÇA
+app.post('/confirmar', async (req, res) => {
   const { nome, tipo, genero } = req.body;
+  const tenantId = req.tenantId || 1;
+  
   if (!nome || !tipo || !genero) {
     return res.status(400).json({ erro: 'Nome, tipo e gênero são obrigatórios' });
   }
   
   try {
-    // Verifica se já tem 24 confirmados
-    const countResult = await pool.query('SELECT COUNT(*) as total FROM confirmados_atual');
+    // Verifica se já tem 24 confirmados DESTE TENANT
+    const countResult = await pool.query(
+      'SELECT COUNT(*) as total FROM confirmados_atual WHERE tenant_id = $1',
+      [tenantId]
+    );
     const total = parseInt(countResult.rows[0].total);
+    
     if (total >= 24) {
       return res.status(400).json({ erro: 'Limite de 24 confirmados atingido!' });
     }
     
-    // Salvar na lista atual (temporária)
+    // Salvar na lista atual
     const resultAtual = await pool.query(
-      'INSERT INTO confirmados_atual (nome, tipo, genero) VALUES ($1, $2, $3) RETURNING *',
-      [nome, tipo, genero]
+      'INSERT INTO confirmados_atual (tenant_id, nome, tipo, genero) VALUES ($1, $2, $3, $4) RETURNING *',
+      [tenantId, nome, tipo, genero]
     );
     
-    // Salvar no histórico (permanente)
+    // Salvar no histórico
     await pool.query(
-      'INSERT INTO historico_confirmacoes (nome, tipo, genero) VALUES ($1, $2, $3)',
-      [nome, tipo, genero]
+      'INSERT INTO historico_confirmacoes (tenant_id, nome, tipo, genero) VALUES ($1, $2, $3, $4)',
+      [tenantId, nome, tipo, genero]
     );
     
     res.json({ sucesso: true, confirmado: resultAtual.rows[0] });
@@ -587,10 +476,13 @@ app.post('/confirmar', verificarStatusTenant, async (req, res) => {
 });
 
 // LISTAR CONFIRMADOS ATUAIS
-app.get('/confirmados', verificarStatusTenant, async (req, res) => {
+app.get('/confirmados', async (req, res) => {
+  const tenantId = req.tenantId || 1;
+  
   try {
     const result = await pool.query(
-      'SELECT * FROM confirmados_atual ORDER BY data_confirmacao ASC LIMIT 24'
+      'SELECT * FROM confirmados_atual WHERE tenant_id = $1 ORDER BY data_confirmacao ASC LIMIT 24',
+      [tenantId]
     );
     res.json(result.rows);
   } catch (err) {
@@ -599,11 +491,16 @@ app.get('/confirmados', verificarStatusTenant, async (req, res) => {
   }
 });
 
-// REMOVER CONFIRMADO ATUAL (não afeta histórico)
-app.delete('/confirmados/:id', verificarStatusTenant, async (req, res) => {
+// REMOVER CONFIRMADO ATUAL
+app.delete('/confirmados/:id', async (req, res) => {
   const { id } = req.params;
+  const tenantId = req.tenantId || 1;
+  
   try {
-    await pool.query('DELETE FROM confirmados_atual WHERE id = $1', [id]);
+    await pool.query(
+      'DELETE FROM confirmados_atual WHERE id = $1 AND tenant_id = $2',
+      [id, tenantId]
+    );
     res.json({ sucesso: true });
   } catch (err) {
     console.error('Erro ao remover:', err);
@@ -611,10 +508,12 @@ app.delete('/confirmados/:id', verificarStatusTenant, async (req, res) => {
   }
 });
 
-// LIMPAR LISTA DE CONFIRMADOS ATUAIS (não afeta histórico)
-app.delete('/confirmados', verificarStatusTenant, async (req, res) => {
+// LIMPAR LISTA DE CONFIRMADOS ATUAIS
+app.delete('/confirmados', async (req, res) => {
+  const tenantId = req.tenantId || 1;
+  
   try {
-    await pool.query('DELETE FROM confirmados_atual');
+    await pool.query('DELETE FROM confirmados_atual WHERE tenant_id = $1', [tenantId]);
     res.json({ sucesso: true });
   } catch (err) {
     console.error('Erro ao limpar:', err);
@@ -622,8 +521,10 @@ app.delete('/confirmados', verificarStatusTenant, async (req, res) => {
   }
 });
 
-// ESTATÍSTICAS (busca do histórico permanente)
-app.get('/estatisticas', verificarStatusTenant, async (req, res) => {
+// ESTATÍSTICAS
+app.get('/estatisticas', async (req, res) => {
+  const tenantId = req.tenantId || 1;
+  
   try {
     const ranking = await pool.query(`
       SELECT 
@@ -633,17 +534,20 @@ app.get('/estatisticas', verificarStatusTenant, async (req, res) => {
         COUNT(*) as total_confirmacoes,
         MAX(data_confirmacao) as ultima_confirmacao
       FROM historico_confirmacoes
+      WHERE tenant_id = $1
       GROUP BY nome, tipo, genero
       ORDER BY total_confirmacoes DESC, nome ASC
-    `);
+    `, [tenantId]);
     
-    const totalConfirmacoes = await pool.query(`
-      SELECT COUNT(*) as total FROM historico_confirmacoes
-    `);
+    const totalConfirmacoes = await pool.query(
+      'SELECT COUNT(*) as total FROM historico_confirmacoes WHERE tenant_id = $1',
+      [tenantId]
+    );
     
-    const pessoasUnicas = await pool.query(`
-      SELECT COUNT(DISTINCT nome) as total FROM historico_confirmacoes
-    `);
+    const pessoasUnicas = await pool.query(
+      'SELECT COUNT(DISTINCT nome) as total FROM historico_confirmacoes WHERE tenant_id = $1',
+      [tenantId]
+    );
     
     const total = parseInt(totalConfirmacoes.rows[0].total) || 0;
     const pessoas = parseInt(pessoasUnicas.rows[0].total) || 1;
@@ -655,8 +559,9 @@ app.get('/estatisticas', verificarStatusTenant, async (req, res) => {
         COUNT(*) as total,
         COUNT(DISTINCT nome) as pessoas
       FROM historico_confirmacoes
+      WHERE tenant_id = $1
       GROUP BY genero
-    `);
+    `, [tenantId]);
     
     const generoObj = {};
     porGenero.rows.forEach(row => {
@@ -695,6 +600,7 @@ app.get('/estatisticas', verificarStatusTenant, async (req, res) => {
 app.put('/estatisticas/pessoa/:nome', verificarAdmin, async (req, res) => {
   const { nome } = req.params;
   const { novoTotal } = req.body;
+  const tenantId = req.tenantId || 1;
   
   if (!novoTotal || novoTotal < 0) {
     return res.status(400).json({ erro: 'Informe um número válido de presenças' });
@@ -702,8 +608,8 @@ app.put('/estatisticas/pessoa/:nome', verificarAdmin, async (req, res) => {
   
   try {
     const pessoa = await pool.query(
-      'SELECT tipo, genero, COUNT(*) as atual FROM historico_confirmacoes WHERE nome = $1 GROUP BY tipo, genero',
-      [nome]
+      'SELECT tipo, genero, COUNT(*) as atual FROM historico_confirmacoes WHERE nome = $1 AND tenant_id = $2 GROUP BY tipo, genero',
+      [nome, tenantId]
     );
     
     if (pessoa.rows.length === 0) {
@@ -717,8 +623,8 @@ app.put('/estatisticas/pessoa/:nome', verificarAdmin, async (req, res) => {
     if (diferenca > 0) {
       for (let i = 0; i < diferenca; i++) {
         await pool.query(
-          'INSERT INTO historico_confirmacoes (nome, tipo, genero) VALUES ($1, $2, $3)',
-          [nome, tipo, genero]
+          'INSERT INTO historico_confirmacoes (tenant_id, nome, tipo, genero) VALUES ($1, $2, $3, $4)',
+          [tenantId, nome, tipo, genero]
         );
       }
     } else if (diferenca < 0) {
@@ -726,11 +632,11 @@ app.put('/estatisticas/pessoa/:nome', verificarAdmin, async (req, res) => {
         `DELETE FROM historico_confirmacoes
          WHERE id IN (
            SELECT id FROM historico_confirmacoes
-           WHERE nome = $1
+           WHERE nome = $1 AND tenant_id = $2
            ORDER BY data_confirmacao DESC
-           LIMIT $2
+           LIMIT $3
          )`,
-        [nome, Math.abs(diferenca)]
+        [nome, tenantId, Math.abs(diferenca)]
       );
     }
     
@@ -749,9 +655,17 @@ app.put('/estatisticas/pessoa/:nome', verificarAdmin, async (req, res) => {
 // REMOVER PESSOA DO HISTÓRICO (ADMIN APENAS)
 app.delete('/estatisticas/pessoa/:nome', verificarAdmin, async (req, res) => {
   const { nome } = req.params;
+  const tenantId = req.tenantId || 1;
+  
   try {
-    const result = await pool.query('DELETE FROM historico_confirmacoes WHERE nome = $1', [nome]);
-    await pool.query('DELETE FROM confirmados_atual WHERE nome = $1', [nome]);
+    const result = await pool.query(
+      'DELETE FROM historico_confirmacoes WHERE nome = $1 AND tenant_id = $2',
+      [nome, tenantId]
+    );
+    await pool.query(
+      'DELETE FROM confirmados_atual WHERE nome = $1 AND tenant_id = $2',
+      [nome, tenantId]
+    );
     res.json({ sucesso: true, removidos: result.rowCount });
   } catch (err) {
     console.error('Erro ao remover pessoa:', err);
@@ -759,27 +673,60 @@ app.delete('/estatisticas/pessoa/:nome', verificarAdmin, async (req, res) => {
   }
 });
 
-// TROCAR SENHA DO ADMIN
-app.post('/admin/trocar-senha', verificarAdmin, async (req, res) => {
-  const { senha_antiga, senha_nova } = req.body;
+// ==================== LOGIN/LOGOUT ====================
+
+app.post('/login', async (req, res) => {
+  const { usuario, senha } = req.body;
   try {
-    const admin = await pool.query('SELECT * FROM admins WHERE id = $1', [req.adminId]);
-    if (admin.rows.length === 0) {
-      return res.status(404).json({ erro: 'Admin não encontrado' });
+    const result = await pool.query('SELECT * FROM admins WHERE usuario = $1', [usuario]);
+    if (result.rows.length === 0) {
+      return res.status(401).json({ sucesso: false, erro: 'Usuário não encontrado' });
     }
     
-    const senhaValida = await bcrypt.compare(senha_antiga, admin.rows[0].senha_hash);
+    const admin = result.rows[0];
+    const senhaValida = await bcrypt.compare(senha, admin.senha_hash);
     if (!senhaValida) {
-      return res.status(401).json({ erro: 'Senha antiga incorreta' });
+      return res.status(401).json({ sucesso: false, erro: 'Senha incorreta' });
     }
     
-    const novaSenhaHash = await bcrypt.hash(senha_nova, 10);
-    await pool.query('UPDATE admins SET senha_hash = $1 WHERE id = $2', [novaSenhaHash, req.adminId]);
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiraEm = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await pool.query(
+      'INSERT INTO admin_tokens (token, admin_id, expira_em) VALUES ($1, $2, $3)',
+      [token, admin.id, expiraEm]
+    );
     
-    res.json({ sucesso: true, mensagem: 'Senha alterada com sucesso!' });
+    res.json({ sucesso: true, token });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ erro: 'Erro ao trocar senha' });
+    console.error('Erro no login:', err);
+    res.status(500).json({ sucesso: false, erro: 'Erro no servidor' });
+  }
+});
+
+app.post('/logout', async (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  try {
+    await pool.query('DELETE FROM admin_tokens WHERE token = $1', [token]);
+    res.json({ sucesso: true });
+  } catch (err) {
+    res.status(500).json({ sucesso: false, erro: 'Erro ao fazer logout' });
+  }
+});
+
+app.get('/verificar-token', async (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) {
+    return res.json({ valido: false });
+  }
+  
+  try {
+    const result = await pool.query(
+      'SELECT * FROM admin_tokens WHERE token = $1 AND expira_em > NOW()',
+      [token]
+    );
+    res.json({ valido: result.rows.length > 0 });
+  } catch (err) {
+    res.json({ valido: false });
   }
 });
 

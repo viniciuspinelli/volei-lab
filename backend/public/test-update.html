@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -20,6 +20,9 @@
       font-weight: bold;
       margin: 10px 5px;
     }
+    button.fix {
+      background: #34d399;
+    }
     pre {
       background: #1a1a1a;
       border: 1px solid #333;
@@ -35,12 +38,42 @@
 <body>
   <h1>🧪 Test Update Tenant</h1>
   
+  <button class="fix" onclick="corrigirConstraint()">🔧 Corrigir Constraint de Status</button>
   <button onclick="testarUpdate()">Testar PUT /api/admin/tenants/1</button>
   
   <h3>Resultado:</h3>
   <pre id="result"></pre>
   
   <script>
+    async function corrigirConstraint() {
+      const result = document.getElementById('result');
+      result.textContent = 'Corrigindo constraint...\n\n';
+      
+      try {
+        const response = await fetch('/api/fix-status-constraint', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.sucesso) {
+          result.className = 'success';
+          result.textContent = '✅ Correção concluída!\n\n';
+          data.logs.forEach(log => {
+            result.textContent += log + '\n';
+          });
+          result.textContent += '\n\nAgora você pode testar o update!';
+        } else {
+          result.className = 'error';
+          result.textContent = `❌ Erro: ${data.erro}`;
+        }
+      } catch (err) {
+        result.className = 'error';
+        result.textContent = `❌ Erro: ${err.message}`;
+      }
+    }
+    
     async function testarUpdate() {
       const result = document.getElementById('result');
       result.textContent = 'Testando...\n';

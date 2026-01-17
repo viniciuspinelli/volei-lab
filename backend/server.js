@@ -659,6 +659,38 @@ app.post('/api/fix-schema', async (req, res) => {
   }
 });
 
+// ==================== ROTA PARA CORRIGIR CONSTRAINT DE STATUS ====================
+app.post('/api/fix-status-constraint', async (req, res) => {
+  const logs = [];
+  
+  try {
+    logs.push('🔧 Removendo constraint antiga...');
+    
+    // Remover constraint antiga se existir
+    await pool.query(`
+      ALTER TABLE tenants 
+      DROP CONSTRAINT IF EXISTS tenants_status_check
+    `);
+    logs.push('✅ Constraint antiga removida');
+    
+    // Adicionar nova constraint com os 3 valores
+    await pool.query(`
+      ALTER TABLE tenants 
+      ADD CONSTRAINT tenants_status_check 
+      CHECK (status IN ('pending', 'active', 'inactive'))
+    `);
+    logs.push('✅ Nova constraint adicionada: pending, active, inactive');
+    
+    logs.push('🎉 Correção concluída!');
+    
+    res.json({ sucesso: true, logs });
+  } catch (err) {
+    console.error('Erro na correção:', err);
+    logs.push(`❌ Erro: ${err.message}`);
+    res.status(500).json({ sucesso: false, erro: err.message, logs });
+  }
+});
+
 
 // ==================== INICIAR SERVIDOR ====================
 app.listen(PORT, () => {

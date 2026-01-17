@@ -9,6 +9,27 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+// ==================== ROTAS HTML (ANTES DO STATIC) ====================
+
+// Página raiz redireciona para login
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/public/login.html');
+});
+
+app.get('/setup-admin', (req, res) => {
+  res.sendFile(__dirname + '/public/setup-admin.html');
+});
+
+app.get('/registro', (req, res) => {
+  res.sendFile(__dirname + '/public/registro.html');
+});
+
+app.get('/lab', (req, res) => {
+  res.sendFile(__dirname + '/public/lab.html');
+});
+
+// Servir arquivos estáticos DEPOIS das rotas específicas
 app.use(express.static('public'));
 
 // PostgreSQL connection
@@ -157,24 +178,6 @@ async function verificarAdmin(req, res, next) {
     return res.status(500).json({ erro: 'Erro ao verificar token' });
   }
 }
-
-// ==================== ROTAS HTML ====================
-
-app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/login.html');
-});
-
-app.get('/setup-admin', (req, res) => {
-  res.sendFile(__dirname + '/public/setup-admin.html');
-});
-
-app.get('/registro', (req, res) => {
-  res.sendFile(__dirname + '/public/registro.html');
-});
-
-app.get('/lab', (req, res) => {
-  res.sendFile(__dirname + '/public/lab.html');
-});
 
 // ==================== AUTENTICAÇÃO ====================
 

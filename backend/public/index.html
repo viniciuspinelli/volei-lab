@@ -29,7 +29,6 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Inter, system-ui, Arial, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; }
     
-    /* LAYOUT */
     .app-container { display: flex; min-height: 100vh; }
     .sidebar { width: var(--sidebar-width); background: var(--bg-secondary); border-right: 1px solid rgba(255,255,255,0.05); padding: var(--spacing-lg); display: flex; flex-direction: column; position: fixed; height: 100vh; left: 0; top: 0; }
     .sidebar-logo { display: flex; align-items: baseline; gap: 4px; font-weight: 700; letter-spacing: 1px; font-size: 18px; margin-bottom: var(--spacing-xl); padding-bottom: var(--spacing-lg); border-bottom: 1px solid rgba(255,255,255,0.05); }
@@ -48,8 +47,8 @@
     .page-header { margin-bottom: var(--spacing-xl); }
     .page-title { font-size: 28px; font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-xs); }
     .page-subtitle { color: var(--text-muted); font-size: 14px; }
+    .user-info { margin-top: 8px; font-size: 12px; color: var(--accent); font-weight: 600; }
     
-    /* CARDS & FORM */
     .card { background: var(--bg-card); border-radius: var(--radius-lg); padding: var(--spacing-lg); margin-bottom: var(--spacing-lg); border: 1px solid rgba(255,255,255,0.05); }
     .card-title { font-size: 16px; font-weight: 600; margin-bottom: var(--spacing-md); display: flex; align-items: center; gap: var(--spacing-sm); }
     .form-group { margin-bottom: var(--spacing-md); }
@@ -57,7 +56,6 @@
     input, select { width: 100%; height: 48px; padding: 12px 14px; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); color: var(--text-primary); font-size: 15px; transition: border-color 0.2s; }
     input:focus, select:focus { outline: none; border-color: var(--accent); }
     
-    /* BOTÕES */
     .btn { height: 48px; padding: 12px 20px; border-radius: var(--radius-md); border: none; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-sm); }
     .btn-primary { background: linear-gradient(135deg, var(--accent), var(--accent-dark)); color: #000; }
     .btn-primary:hover { background: linear-gradient(135deg, var(--accent-light), var(--accent)); transform: translateY(-1px); }
@@ -67,7 +65,6 @@
     .btn-danger:hover { background: rgba(239,68,68,0.25); }
     .btn-block { width: 100%; }
     
-    /* LISTA CONFIRMADOS */
     .contador-badge { background: rgba(255,107,0,0.2); color: var(--accent); padding: 4px 10px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; }
     .lista-confirmados { list-style: none; }
     .lista-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 12px; border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.2s; }
@@ -83,25 +80,20 @@
     .btn-remove { padding: 8px 12px; background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.2); border-radius: var(--radius-sm); color: var(--danger); font-size: 12px; cursor: pointer; transition: all 0.2s; }
     .btn-remove:hover { background: rgba(239,68,68,0.25); }
     
-    /* TIMES */
     .times-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md); }
     .time-card { background: rgba(255,255,255,0.02); border-radius: var(--radius-md); padding: var(--spacing-md); border: 1px solid rgba(255,255,255,0.05); }
     .time-card h4 { color: var(--accent); font-size: 15px; margin-bottom: var(--spacing-sm); padding-bottom: var(--spacing-sm); border-bottom: 1px solid rgba(255,255,255,0.05); }
     .time-card ul { list-style: none; }
     .time-card li { font-size: 14px; padding: 6px 0; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
-    
-    /* DRAG AND DROP ADMIN */
     .time-card li.draggable { cursor: grab; padding: 8px 10px; margin: 4px 0; background: rgba(255,255,255,0.03); border-radius: var(--radius-sm); border: 1px solid transparent; transition: all 0.2s; }
     .time-card li.draggable:hover { background: rgba(255,107,0,0.1); border-color: rgba(255,107,0,0.3); }
     .time-card li.dragging { opacity: 0.5; cursor: grabbing; }
     .time-card li.drag-over { border-color: var(--accent); background: rgba(255,107,0,0.2); }
     .time-card ul.drag-target { min-height: 100px; }
     .admin-hint { font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 12px; padding: 8px; background: rgba(255,107,0,0.1); border-radius: var(--radius-sm); }
-    
     .btn-whatsapp { background: rgba(37,211,102,0.15); border: 1px solid rgba(37,211,102,0.3); color: #25d366; }
     .btn-whatsapp:hover { background: rgba(37,211,102,0.25); }
     
-    /* ESTATÍSTICAS */
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md); margin-bottom: var(--spacing-lg); }
     .stat-card { background: rgba(255,255,255,0.02); border-radius: var(--radius-md); padding: var(--spacing-lg); text-align: center; border: 1px solid rgba(255,255,255,0.05); }
     .stat-value { font-size: 36px; font-weight: 700; color: var(--accent); }
@@ -116,7 +108,6 @@
     .ranking-item .count { color: var(--text-muted); font-size: 14px; }
     .empty-state { text-align: center; padding: var(--spacing-xl); color: var(--text-muted); }
     
-    /* MODAL LOGIN */
     .login-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; align-items: center; justify-content: center; }
     .login-modal.ativo { display: flex; }
     .login-box { background: var(--bg-card); border-radius: var(--radius-lg); padding: 30px; max-width: 350px; width: 90%; border: 1px solid rgba(255,107,0,0.3); }
@@ -124,12 +115,10 @@
     .login-box input { width: 100%; margin-bottom: 12px; }
     .login-erro { color: var(--danger); font-size: 13px; margin-bottom: 12px; text-align: center; display: none; }
     
-    /* MENSAGEM */
     .mensagem { text-align: center; padding: var(--spacing-md); margin-bottom: var(--spacing-md); border-radius: var(--radius-md); font-size: 14px; min-height: 20px; }
     .mensagem.sucesso { background: rgba(52,211,153,0.1); color: #34d399; }
     .mensagem.erro { background: rgba(239,68,68,0.1); color: var(--danger); }
     
-    /* BOTTOM NAV MOBILE */
     .bottom-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-secondary); border-top: 1px solid rgba(255,255,255,0.05); padding: var(--spacing-sm) 0; z-index: 1000; }
     .bottom-nav-items { display: flex; justify-content: space-around; align-items: center; }
     .bottom-nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 16px; color: var(--text-muted); text-decoration: none; font-size: 11px; font-weight: 500; border: none; background: transparent; cursor: pointer; transition: color 0.2s; }
@@ -137,7 +126,6 @@
     .bottom-nav-item.active { color: var(--accent); }
     .bottom-nav-item.admin-logged { color: var(--accent); }
     
-    /* RESPONSIVO */
     @media (max-width: 768px) {
       .sidebar { display: none; }
       .main-content { margin-left: 0; padding: var(--spacing-md); padding-bottom: 100px; }
@@ -150,7 +138,6 @@
 </head>
 <body>
   <div class="app-container">
-    <!-- Sidebar Desktop -->
     <aside class="sidebar">
       <div class="sidebar-logo">
         <span class="part1">PAGOU</span>
@@ -182,13 +169,12 @@
       </div>
     </aside>
     
-    <!-- Main Content -->
     <main class="main-content">
-      <!-- Página Confirmados -->
       <section id="page-confirmados" class="page active">
         <div class="page-header">
           <h1 class="page-title">Lista de Presença</h1>
           <p class="page-subtitle">Confirme sua presença para o vôlei!</p>
+          <div id="userInfo" class="user-info"></div>
         </div>
         <div class="card">
           <h3 class="card-title">Nova Confirmação</h3>
@@ -224,7 +210,6 @@
         </div>
       </section>
       
-      <!-- Página Sorteio -->
       <section id="page-sorteio" class="page">
         <div class="page-header">
           <h1 class="page-title">Sorteio de Times</h1>
@@ -233,7 +218,7 @@
         <div class="card">
           <h3 class="card-title">Realizar Sorteio</h3>
           <p style="color: var(--text-muted); margin-bottom: 16px; font-size: 14px;">
-            O sorteio distribui automaticamente os jogadores em 4 times, equilibrando homens e mulheres.
+            O sorteio distribui automaticamente os jogadores em 3 ou 4 times, equilibrando homens e mulheres.
           </p>
           <div style="display: flex; gap: 12px;">
             <button class="btn btn-primary" style="flex:1;" id="sortearTimes">Sortear Times</button>
@@ -243,7 +228,6 @@
         <div id="resultadoSorteio"></div>
       </section>
       
-      <!-- Página Estatísticas -->
       <section id="page-estatisticas" class="page">
         <div class="page-header">
           <h1 class="page-title">Estatísticas</h1>
@@ -278,7 +262,6 @@
     </main>
   </div>
 
-  <!-- Bottom Nav Mobile -->
   <nav class="bottom-nav">
     <div class="bottom-nav-items">
       <button class="bottom-nav-item active" data-page="confirmados">
@@ -304,7 +287,6 @@
     </div>
   </nav>
 
-  <!-- Modal Login Admin -->
   <div class="login-modal" id="loginModal">
     <div class="login-box">
       <h3>Login Admin</h3>
@@ -317,35 +299,76 @@
   </div>
 
   <script>
-    // ==================== VERIFICAÇÃO DE TOKEN ====================
-    function verificarTokenInicial() {
+    let currentTenantId = null;
+    let adminToken = null;
+    let isAdmin = false;
+    
+    // VERIFICAÇÃO DE TOKEN AO CARREGAR
+    async function verificarTokenInicial() {
       const token = localStorage.getItem('adminToken');
+      
       if (!token) {
         window.location.href = '/login.html';
         return false;
       }
-      return true;
+      
+      try {
+        const response = await fetch('/verificar-token', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const result = await response.json();
+        
+        if (!result.valido) {
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('lastTenantId');
+          window.location.href = '/login.html';
+          return false;
+        }
+        
+        // Verificar se mudou de tenant
+        const lastTenantId = localStorage.getItem('lastTenantId');
+        currentTenantId = result.tenant_id;
+        
+        if (lastTenantId && lastTenantId !== String(currentTenantId)) {
+          console.log('🔄 Tenant diferente detectado. Limpando cache...');
+          window.ultimoSorteio = null;
+          if (document.getElementById('resultadoSorteio')) {
+            document.getElementById('resultadoSorteio').innerHTML = '';
+          }
+        }
+        
+        localStorage.setItem('lastTenantId', currentTenantId || '');
+        
+        if (result.tenant_nome) {
+          const userInfoEl = document.getElementById('userInfo');
+          if (userInfoEl) {
+            userInfoEl.textContent = `📍 ${result.tenant_nome}`;
+          }
+        }
+        
+        return true;
+      } catch (err) {
+        console.error('Erro ao verificar token:', err);
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('lastTenantId');
+        window.location.href = '/login.html';
+        return false;
+      }
     }
 
-    // Verificar ao carregar
-    if (!verificarTokenInicial()) {
-      // Se não tem token, para execução
-      throw new Error('Token não encontrado');
-    }
-
-    // Função para obter token
     function getToken() {
       return localStorage.getItem('adminToken');
     }
 
-    // Função para tratar erro 401
     function handleUnauthorized() {
       alert('Sessão expirada. Faça login novamente.');
       localStorage.removeItem('adminToken');
+      localStorage.removeItem('lastTenantId');
       window.location.href = '/login.html';
     }
 
-    // ==================== NAVEGAÇÃO ====================
+    // NAVEGAÇÃO
     const navItems = document.querySelectorAll('[data-page]');
     const pages = document.querySelectorAll('.page');
     
@@ -358,7 +381,7 @@
     
     navItems.forEach(item => item.addEventListener('click', () => navigateTo(item.dataset.page)));
     
-    // ==================== MENSAGEM ====================
+    // MENSAGEM
     function mostrarMensagem(texto, tipo = '') {
       const el = document.getElementById('mensagem');
       el.textContent = texto;
@@ -366,15 +389,13 @@
       setTimeout(() => { el.textContent = ''; el.className = 'mensagem'; }, 3000);
     }
     
-    // ==================== ATUALIZAR LISTA ====================
+    // ATUALIZAR LISTA
     async function atualizarLista() {
       try {
         const token = getToken();
         
         const response = await fetch('/confirmados', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { 'Authorization': `Bearer ${token}` }
         });
         
         if (response.status === 401) {
@@ -415,7 +436,7 @@
       }
     }
     
-    // ==================== REMOVER CONFIRMADO ====================
+    // REMOVER CONFIRMADO
     async function removerConfirmado(id) {
       if (!confirm('Remover esta pessoa?')) return;
       
@@ -424,9 +445,7 @@
         
         const res = await fetch(`/confirmados/${id}`, {
           method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { 'Authorization': `Bearer ${token}` }
         });
         
         if (res.status === 401) {
@@ -447,7 +466,7 @@
       }
     }
     
-    // ==================== FORM CONFIRMAÇÃO ====================
+    // FORM CONFIRMAÇÃO
     document.getElementById('formConfirma').addEventListener('submit', async function(e) {
       e.preventDefault();
       
@@ -488,7 +507,7 @@
       }
     });
     
-    // ==================== SORTEIO ====================
+    // SORTEIO
     function sortearTimes(confirmados) {
       confirmados = JSON.parse(JSON.stringify(confirmados));
       
@@ -512,7 +531,6 @@
       
       const totalPessoas = confirmados.length;
       const numTimes = totalPessoas <= 18 ? 3 : 4;
-      const pessoasPorTime = Math.ceil(totalPessoas / numTimes);
       
       const times = [];
       for (let i = 0; i < numTimes; i++) {
@@ -525,7 +543,6 @@
         timeIndex = (timeIndex + 1) % numTimes;
       }
       
-      timeIndex = 0;
       for (let i = 0; i < homens.length; i++) {
         let menorTime = 0;
         let menorTamanho = times[0].length;
@@ -550,7 +567,7 @@
       return times;
     }
     
-    // ==================== RENDER TIMES ====================
+    // RENDER TIMES
     function renderizarTimes() {
       if (!window.ultimoSorteio) return;
       
@@ -597,7 +614,7 @@
       }
     }
     
-    // ==================== DRAG AND DROP ====================
+    // DRAG AND DROP
     function initDragAndDrop() {
       let draggedItem = null;
       let draggedFromTime = null;
@@ -644,7 +661,7 @@
       });
     }
     
-    // ==================== BOTÃO SORTEAR ====================
+    // BOTÃO SORTEAR
     document.getElementById('sortearTimes').addEventListener('click', async function(e) {
       e.preventDefault();
       
@@ -652,9 +669,7 @@
         const token = getToken();
         
         const res = await fetch('/confirmados', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          headers: { 'Authorization': `Bearer ${token}` }
         });
         
         if (res.status === 401) {
@@ -674,14 +689,14 @@
       }
     });
     
-    // ==================== LIMPAR SORTEIO ====================
+    // LIMPAR SORTEIO
     document.getElementById('limparSorteio').addEventListener('click', function() {
       document.getElementById('resultadoSorteio').innerHTML = '';
       this.style.display = 'none';
       window.ultimoSorteio = null;
     });
     
-    // ==================== WHATSAPP ====================
+    // WHATSAPP
     function compartilharWhatsApp() {
       if (!window.ultimoSorteio) return;
       
@@ -701,7 +716,7 @@
       window.open(`https://wa.me/5511986439388?text=${encodeURIComponent(mensagem)}`, '_blank');
     }
     
-    // ==================== LIMPAR LISTA ====================
+    // LIMPAR LISTA
     document.getElementById('limparConfirmados').addEventListener('click', async function(e) {
       e.preventDefault();
       
@@ -711,9 +726,7 @@
           
           const res = await fetch('/confirmados', {
             method: 'DELETE',
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
+            headers: { 'Authorization': `Bearer ${token}` }
           });
           
           if (res.status === 401) {
@@ -733,10 +746,7 @@
       }
     });
     
-    // ==================== SISTEMA ADMIN ====================
-    let adminToken = null;
-    let isAdmin = false;
-    
+    // SISTEMA ADMIN
     function abrirLogin() {
       document.getElementById('loginModal').classList.add('ativo');
       document.getElementById('loginUsuario').focus();
@@ -780,23 +790,31 @@
     }
     
     async function fazerLogout() {
-      if (adminToken) {
+      const token = getToken();
+      
+      if (token) {
         try {
           await fetch('/logout', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${adminToken}`
+              'Authorization': `Bearer ${token}`
             }
           });
-        } catch (e) {}
+        } catch (e) {
+          console.log('Erro ao fazer logout:', e);
+        }
       }
       
+      // Limpar TUDO
       adminToken = null;
       isAdmin = false;
-      atualizarUIAdmin();
-      carregarEstatisticas();
-      mostrarMensagem('Logout realizado', 'sucesso');
+      window.ultimoSorteio = null;
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('lastTenantId');
+      
+      // Redirecionar para login
+      window.location.href = '/login.html';
     }
     
     function atualizarUIAdmin() {
@@ -808,7 +826,7 @@
       if (window.ultimoSorteio) renderizarTimes();
     }
     
-    // ==================== REMOVER DAS ESTATÍSTICAS ====================
+    // REMOVER DAS ESTATÍSTICAS
     async function removerDasEstatisticas(nome) {
       if (!confirm(`Remover "${nome}" das estatísticas permanentemente?\n\nIsso apagará TODAS as confirmações dessa pessoa.`)) return;
       
@@ -842,7 +860,7 @@
       }
     }
     
-    // ==================== ESTATÍSTICAS ====================
+    // ESTATÍSTICAS
     async function carregarEstatisticas() {
       try {
         const token = getToken();
@@ -931,9 +949,13 @@
       }
     }
     
-    // ==================== INICIALIZAÇÃO ====================
-    atualizarLista();
-    atualizarUIAdmin();
+    // INICIALIZAÇÃO
+    verificarTokenInicial().then(valido => {
+      if (valido) {
+        atualizarLista();
+        atualizarUIAdmin();
+      }
+    });
   </script>
 </body>
 </html>

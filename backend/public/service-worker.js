@@ -1,81 +1,74 @@
-const CACHE_NAME = 'volei-v2';
+const CACHE_NAME = 'volei-v3';
 const urlsToCache = [
-  '/',
-  '/index.html',
   '/login.html',
   '/registro.html'
 ];
 
 // Instalar
 self.addEventListener('install', event => {
-  console.log('🔧 SW: Instalando...');
+  console.log('🔧 SW v3: Instalando...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
       .then(() => console.log('✅ Cache criado'))
-      .catch(err => console.error('❌ Erro cache:', err))
   );
   self.skipWaiting();
 });
 
-// Ativar
+// Ativar e limpar caches antigos
 self.addEventListener('activate', event => {
-  console.log('🔧 SW: Ativando...');
+  console.log('🔧 SW v3: Ativando...');
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.filter(name => name !== CACHE_NAME)
-          .map(name => caches.delete(name))
+          .map(name => {
+            console.log('🗑️ Removendo cache:', name);
+            return caches.delete(name);
+          })
       );
     })
   );
   self.clients.claim();
 });
 
-// Fetch
+// Fetch - SEM CACHE para APIs
 self.addEventListener('fetch', event => {
   const url = event.request.url;
   
-  // ⚠️ IMPORTANTE: Validar ANTES de chamar respondWith
+  // Validar se é HTTP/HTTPS
   const isHttp = url.startsWith('http://') || url.startsWith('https://');
-  const isGet = event.request.method === 'GET';
+  if (!isHttp) return;
   
-  if (!isHttp || !isGet) {
-    return; // Deixa o navegador lidar com isso
+  // Validar se é GET
+  const isGet = event.request.method === 'GET';
+  if (!isGet) return;
+  
+  // ⚠️ NÃO CACHEAR: index.html, APIs, dados dinâmicos
+  const urlObj = new URL(url);
+  const noCachePaths = [
+    '/index.html',
+    '/confirmar',
+    '/confirmados',
+    '/estatisticas',
+    '/verificar-token',
+    '/api/',
+    '/logout'
+  ];
+  
+  const shouldNotCache = noCachePaths.some(path => urlObj.pathname.includes(path));
+  
+  if (shouldNotCache) {
+    // Buscar direto da rede, sem cache
+    event.respondWith(fetch(event.request));
+    return;
   }
   
+  // Para outros arquivos (login, registro), usar cache
   event.respondWith(
     caches.match(event.request)
-      .then(cached => {
-        if (cached) {
-          return cached;
-        }
-        
-        return fetch(event.request)
-          .then(response => {
-            // Não cachear se não for sucesso
-            if (!response || response.status !== 200) {
-              return response;
-            }
-            
-            // Não cachear APIs
-            const urlObj = new URL(event.request.url);
-            const isApi = urlObj.pathname.includes('/api/') || 
-                         urlObj.pathname.includes('/confirmar') ||
-                         urlObj.pathname.includes('/estatistica');
-            
-            if (!isApi && response.type === 'basic') {
-              const responseClone = response.clone();
-              caches.open(CACHE_NAME)
-                .then(cache => cache.put(event.request, responseClone))
-                .catch(err => console.log('Cache put error:', err));
-            }
-            
-            return response;
-          })
-          .catch(() => caches.match('/index.html'));
-      })
+      .then(cached => cached || fetch(event.request))
   );
 });
 
-console.log('✅ SW v2 carregado');
+console.log('✅ SW v3 carregado - SEM cache de APIs');

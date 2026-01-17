@@ -281,12 +281,25 @@
   </nav>
 
   <script>
-    // ========== VARIÁVEIS GLOBAIS (DECLARADAS UMA VEZ APENAS) ==========
-    let currentTenantId = null;
-    let whatsappNumber = null;
-    let adminToken = null;
-    let isAdmin = false;
-    
+javascript
+// ========== VARIÁVEIS GLOBAIS ==========
+let currentTenantId = null;
+let whatsappNumber = null;
+let adminToken = null;
+let isAdmin = false;
+
+    // ========== LIMPAR CACHE ANTIGO (EXECUTAR UMA VEZ) ==========
+if (localStorage.getItem('cache_cleared_v3') !== 'true') {
+  caches.keys().then(keys => {
+    keys.forEach(key => {
+      if (key !== 'volei-v3') {
+        caches.delete(key);
+        console.log('🗑️ Cache antigo removido:', key);
+      }
+    });
+  });
+  localStorage.setItem('cache_cleared_v3', 'true');
+}
     // ========== VERIFICAÇÃO DE TOKEN AO CARREGAR ==========
     async function verificarTokenInicial() {
       const token = localStorage.getItem('adminToken');
@@ -765,13 +778,6 @@
       }
     }
     
-    // ========== INICIALIZAÇÃO ==========
-    verificarTokenInicial().then(valido => {
-      if (valido) {
-        atualizarLista();
-      }
-    });
-
   // ========== INICIALIZAÇÃO ==========
     verificarTokenInicial().then(valido => {
       if (valido) {

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volei Lab - Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .login-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        .login-body {
+            padding: 2rem;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-5 col-lg-4">
+                <div class="login-card">
+                    <div class="login-header">
+                        <h1 class="mb-0">🏐</h1>
+                        <h2 class="h4 mt-3 mb-0">Volei Lab</h2>
+                        <p class="mb-0 mt-2" style="opacity: 0.9;">Sistema de Gestão de Times</p>
+                    </div>
+                    
+                    <div class="login-body">
+                        <div id="mensagem"></div>
+                        
+                        <form id="formLogin">
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" name="usuario" 
+                                       placeholder="seu@email.com" required autofocus>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Senha</label>
+                                <input type="password" class="form-control" name="senha" 
+                                       placeholder="••••••••" required>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary w-100 py-2" id="btnLogin">
+                                Entrar
+                            </button>
+                        </form>
+                        
+                        <div class="text-center mt-4">
+                            <p class="text-muted mb-2">Não tem conta?</p>
+                            <a href="registro.html" class="btn btn-outline-secondary btn-sm">
+                                Criar Conta Grátis
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const form = document.getElementById('formLogin');
+        const btnLogin = document.getElementById('btnLogin');
+        const mensagemDiv = document.getElementById('mensagem');
+        
+        // Verificar se já está logado
+        const token = localStorage.getItem('adminToken');
+        if (token) {
+            verificarToken(token);
+        }
+        
+        async function verificarToken(token) {
+            try {
+                const response = await fetch('/verificar-token', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await response.json();
+                
+                if (result.valido) {
+                    window.location.href = '/index.html';
+                }
+            } catch (err) {
+                console.log('Token inválido, continuando no login');
+            }
+        }
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            btnLogin.disabled = true;
+            btnLogin.textContent = 'Entrando...';
+            mensagemDiv.innerHTML = '';
+            
+            const formData = new FormData(form);
+            const data = {
+                usuario: formData.get('usuario'),
+                senha: formData.get('senha')
+            };
+            
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.sucesso) {
+                    localStorage.setItem('adminToken', result.token);
+                    mensagemDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            ✅ Login realizado! Redirecionando...
+                        </div>
+                    `;
+                    
+                    setTimeout(() => {
+                        window.location.href = '/index.html';
+                    }, 1000);
+                } else {
+                    mensagemDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            ❌ ${result.erro}
+                        </div>
+                    `;
+                    btnLogin.disabled = false;
+                    btnLogin.textContent = 'Entrar';
+                }
+            } catch (err) {
+                console.error(err);
+                mensagemDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        ❌ Erro ao fazer login. Tente novamente.
+                    </div>
+                `;
+                btnLogin.disabled = false;
+                btnLogin.textContent = 'Entrar';
+            }
+        });
+    </script>
+</body>
+</html>

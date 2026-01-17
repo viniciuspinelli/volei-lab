@@ -601,6 +601,23 @@ app.delete('/estatisticas/pessoa/:nome', verificarAdmin, async (req, res) => {
   }
 });
 
+// VERIFICAR SE ADMIN EXISTE (usado pelo setup)
+app.get('/admin-existe', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT COUNT(*) as total FROM admins');
+    const existe = parseInt(result.rows[0].total) > 0;
+    res.json({ existe });
+  } catch (err) {
+    res.json({ existe: false });
+  }
+});
+
+// Redirecionar página raiz para login
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/public/login.html');
+});
+
+
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });

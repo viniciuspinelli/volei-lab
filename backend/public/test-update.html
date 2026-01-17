@@ -1,0 +1,92 @@
+ <!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Test Update</title>
+  <style>
+    body {
+      background: #0a0a0a;
+      color: #fff;
+      font-family: monospace;
+      padding: 20px;
+    }
+    button {
+      background: #ff6b00;
+      color: #000;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      margin: 10px 5px;
+    }
+    pre {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 13px;
+    }
+    .success { color: #34d399; }
+    .error { color: #ef4444; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Test Update Tenant</h1>
+  
+  <button onclick="testarUpdate()">Testar PUT /api/admin/tenants/1</button>
+  
+  <h3>Resultado:</h3>
+  <pre id="result"></pre>
+  
+  <script>
+    async function testarUpdate() {
+      const result = document.getElementById('result');
+      result.textContent = 'Testando...\n';
+      
+      const payload = {
+        nome: 'Skey',
+        email: 'viniciuspinelli@gmail.com',
+        whatsapp: '11986439388',
+        status: 'inactive',
+        plano: 'mensal'
+      };
+      
+      result.textContent += `Payload enviado:\n${JSON.stringify(payload, null, 2)}\n\n`;
+      
+      try {
+        const response = await fetch('/api/admin/tenants/1', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer admin@2026volei'
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        result.textContent += `Status: ${response.status} ${response.statusText}\n\n`;
+        
+        const text = await response.text();
+        result.textContent += `Response:\n${text}\n\n`;
+        
+        try {
+          const json = JSON.parse(text);
+          result.textContent += `JSON formatado:\n${JSON.stringify(json, null, 2)}`;
+        } catch (e) {
+          result.textContent += '(Resposta não é JSON)';
+        }
+        
+        if (response.ok) {
+          result.className = 'success';
+        } else {
+          result.className = 'error';
+        }
+      } catch (err) {
+        result.className = 'error';
+        result.textContent += `\nErro: ${err.message}`;
+      }
+    }
+  </script>
+</body>
+</html>

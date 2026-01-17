@@ -444,38 +444,57 @@ app.put('/api/admin/tenants/:id', verificarMasterAdmin, async (req, res) => {
   const { nome, email, whatsapp, status, plano } = req.body;
   const tenantId = req.params.id;
   
+  console.log('=== PUT /api/admin/tenants/:id ===');
+  console.log('Tenant ID:', tenantId);
+  console.log('Body recebido:', req.body);
+  
   try {
-    // Atualizar dados do tenant
-    await pool.query(`
+    // 1. Atualizar dados do tenant
+    console.log('Atualizando tenant...');
+    const tenantResult = await pool.query(`
       UPDATE tenants 
       SET nome = $1, 
           whatsapp_number = $2, 
           status = $3, 
           plano = $4
       WHERE id = $5
+      RETURNING *
     `, [nome, whatsapp, status, plano, tenantId]);
     
-    // Atualizar email do admin se fornecido
+    console.log('Tenant atualizado:', tenantResult.rows[0]);
+    
+    // 2. Atualizar email do admin se fornecido
     if (email) {
-      await pool.query(`
+      console.log('Atualizando email do admin para:', email);
+      const adminResult = await pool.query(`
         UPDATE admins 
         SET usuario = $1 
         WHERE tenant_id = $2
+        RETURNING *
       `, [email, tenantId]);
+      
+      console.log('Admin atualizado:', adminResult.rows[0]);
     }
+    
+    console.log('✅ Atualização concluída com sucesso!');
     
     res.json({ 
       sucesso: true, 
-      mensagem: 'Time atualizado com sucesso!' 
+      mensagem: 'Time atualizado com sucesso!',
+      tenant: tenantResult.rows[0]
     });
   } catch (err) {
-    console.error('Erro ao atualizar tenant:', err);
+    console.error('❌ Erro ao atualizar tenant:', err);
+    console.error('Stack:', err.stack);
+    
     res.status(500).json({ 
       erro: 'Erro ao atualizar', 
-      detalhes: err.message 
+      detalhes: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
     });
   }
 });
+
 // ==================== ROTA DE MIGRAÇÃO ====================
 app.post('/api/migrate', async (req, res) => {
   const logs = [];

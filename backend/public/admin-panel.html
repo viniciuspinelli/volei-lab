@@ -559,22 +559,47 @@
       document.getElementById('modalAlert').innerHTML = '';
     }
     
-    document.getElementById('editForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
-      
-      const id = document.getElementById('editTenantId').value;
-      const status = document.getElementById('editStatus').value;
-      const plano = document.getElementById('editPlano').value;
-      
-      try {
-        const response = await fetch(`/api/admin/tenants/${id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + MASTER_PASSWORD
-          },
-          body: JSON.stringify({ status, plano })
-        });
+document.getElementById('editForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const id = document.getElementById('editTenantId').value;
+  const nome = document.getElementById('editNome').value;
+  const email = document.getElementById('editEmail').value;
+  const whatsapp = document.getElementById('editWhatsapp').value;
+  const status = document.getElementById('editStatus').value;
+  const plano = document.getElementById('editPlano').value;
+  
+  try {
+    const response = await fetch(`/api/admin/tenants/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + MASTER_PASSWORD
+      },
+      body: JSON.stringify({ 
+        nome: nome,
+        email: email,
+        whatsapp: whatsapp,
+        status: status,
+        plano: plano
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.sucesso) {
+      showAlert('✅ Tenant atualizado com sucesso!', 'success');
+      fecharModal();
+      carregarTenants();
+    } else {
+      throw new Error(result.erro || 'Erro ao atualizar');
+    }
+  } catch (err) {
+    document.getElementById('modalAlert').innerHTML = `
+      <div class="alert alert-error">❌ ${err.message}</div>
+    `;
+  }
+});
         
         const result = await response.json();
         

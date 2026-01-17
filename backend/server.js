@@ -730,6 +730,31 @@ app.get('/verificar-token', async (req, res) => {
   }
 });
 
+// ==================== ROTA DE DEBUG (TEMPORÁRIA) ====================
+app.get('/api/debug/tenant-check', async (req, res) => {
+  const tenantId = req.tenantId;
+  
+  try {
+    const confirmados = await pool.query(
+      'SELECT id, tenant_id, nome FROM confirmados_atual WHERE tenant_id = $1',
+      [tenantId]
+    );
+    
+    const todosConfirmados = await pool.query(
+      'SELECT id, tenant_id, nome FROM confirmados_atual ORDER BY tenant_id, id'
+    );
+    
+    res.json({
+      req_tenantId: tenantId,
+      confirmados_deste_tenant: confirmados.rows,
+      todos_confirmados_no_banco: todosConfirmados.rows
+    });
+  } catch (err) {
+    res.status(500).json({ erro: err.message });
+  }
+});
+
+
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });

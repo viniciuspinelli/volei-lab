@@ -271,99 +271,78 @@
   </nav>
 
   <script>
+    // ========== VARIÁVEIS GLOBAIS (DECLARADAS UMA VEZ APENAS) ==========
     let currentTenantId = null;
-    let adminToken = null;
-    let isAdmin = false;
-    let currentTenantId = null;
-    let whatsappNumber = null;  // ← ADICIONAR ESTA LINHA
+    let whatsappNumber = null;
     let adminToken = null;
     let isAdmin = false;
     
-    // VERIFICAÇÃO DE TOKEN AO CARREGAR
-// No início do script do index.html, adicione essa variável global
-let currentTenantId = null;
-let whatsappNumber = null;  // ← ADICIONAR ESTA LINHA
-let adminToken = null;
-let isAdmin = false;
+    // ========== VERIFICAÇÃO DE TOKEN AO CARREGAR ==========
+    async function verificarTokenInicial() {
+      const token = localStorage.getItem('adminToken');
+      
+      if (!token) {
+        window.location.href = '/login.html';
+        return false;
+      }
+      
+      try {
+        const response = await fetch('/verificar-token', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        const result = await response.json();
+        
+        if (!result.valido) {
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('lastTenantId');
+          window.location.href = '/login.html';
+          return false;
+        }
+        
+        const lastTenantId = localStorage.getItem('lastTenantId');
+        currentTenantId = result.tenant_id;
+        whatsappNumber = result.whatsapp_number;
+        
+        if (lastTenantId && lastTenantId !== String(currentTenantId)) {
+          console.log('🔄 Tenant diferente detectado. Limpando cache...');
+          window.ultimoSorteio = null;
+          if (document.getElementById('resultadoSorteio')) {
+            document.getElementById('resultadoSorteio').innerHTML = '';
+          }
+        }
+        
+        localStorage.setItem('lastTenantId', currentTenantId || '');
+        
+        if (result.tenant_nome) {
+          const userInfoEl = document.getElementById('userInfo');
+          if (userInfoEl) {
+            userInfoEl.textContent = `📍 ${result.tenant_nome}`;
+          }
+        }
+        
+        return true;
+      } catch (err) {
+        console.error('Erro ao verificar token:', err);
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('lastTenantId');
+        window.location.href = '/login.html';
+        return false;
+      }
+    }
 
-// Na função verificarTokenInicial, após obter o resultado:
-async function verificarTokenInicial() {
-  const token = localStorage.getItem('adminToken');
-  
-  if (!token) {
-    window.location.href = '/login.html';
-    return false;
-  }
-  
-  try {
-    const response = await fetch('/verificar-token', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
-    const result = await response.json();
-    
-    if (!result.valido) {
+    function getToken() {
+      return localStorage.getItem('adminToken');
+    }
+
+    function handleUnauthorized() {
+      alert('Sessão expirada. Faça login novamente.');
       localStorage.removeItem('adminToken');
       localStorage.removeItem('lastTenantId');
       window.location.href = '/login.html';
-      return false;
     }
-    
-    const lastTenantId = localStorage.getItem('lastTenantId');
-    currentTenantId = result.tenant_id;
-    whatsappNumber = result.whatsapp_number;  // ← ADICIONAR ESTA LINHA
-    
-    if (lastTenantId && lastTenantId !== String(currentTenantId)) {
-      console.log('🔄 Tenant diferente detectado. Limpando cache...');
-      window.ultimoSorteio = null;
-      if (document.getElementById('resultadoSorteio')) {
-        document.getElementById('resultadoSorteio').innerHTML = '';
-      }
-    }
-    
-    localStorage.setItem('lastTenantId', currentTenantId || '');
-    
-    if (result.tenant_nome) {
-      const userInfoEl = document.getElementById('userInfo');
-      if (userInfoEl) {
-        userInfoEl.textContent = `📍 ${result.tenant_nome}`;
-      }
-    }
-    
-    return true;
-  } catch (err) {
-    console.error('Erro ao verificar token:', err);
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('lastTenantId');
-    window.location.href = '/login.html';
-    return false;
-  }
-}
 
-// Substituir a função compartilharWhatsApp por:
-function compartilharWhatsApp() {
-  if (!window.ultimoSorteio) return;
-  
-  const numTimes = window.ultimoSorteio.length;
-  let mensagem = '🏐 *SORTEIO DOS TIMES - VÔLEI*\n\n';
-  
-  for (let i = 0; i < numTimes; i++) {
-    mensagem += `*Time ${i + 1}*\n`;
-    window.ultimoSorteio[i].forEach(p => {
-      if (p.nome !== 'Vaga Livre') {
-        mensagem += `${p.nome}${p.genero ? ' ' + (p.genero === 'masculino' ? '♂' : '♀') : ''}\n`;
-      }
-    });
-    mensagem += '\n';
-  }
-  
-  // Usar o número do WhatsApp do tenant ou um padrão
-  const numero = whatsappNumber || '5511999999999';
-  
-  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
-}
-
-    // NAVEGAÇÃO
+    // ========== NAVEGAÇÃO ==========
     const navItems = document.querySelectorAll('[data-page]');
     const pages = document.querySelectorAll('.page');
     
@@ -376,7 +355,7 @@ function compartilharWhatsApp() {
     
     navItems.forEach(item => item.addEventListener('click', () => navigateTo(item.dataset.page)));
     
-    // MENSAGEM
+    // ========== MENSAGEM ==========
     function mostrarMensagem(texto, tipo = '') {
       const el = document.getElementById('mensagem');
       el.textContent = texto;
@@ -384,7 +363,7 @@ function compartilharWhatsApp() {
       setTimeout(() => { el.textContent = ''; el.className = 'mensagem'; }, 3000);
     }
     
-    // ATUALIZAR LISTA
+    // ========== ATUALIZAR LISTA ==========
     async function atualizarLista() {
       try {
         const token = getToken();
@@ -431,7 +410,7 @@ function compartilharWhatsApp() {
       }
     }
     
-    // REMOVER CONFIRMADO
+    // ========== REMOVER CONFIRMADO ==========
     async function removerConfirmado(id) {
       if (!confirm('Remover esta pessoa?')) return;
       
@@ -461,7 +440,7 @@ function compartilharWhatsApp() {
       }
     }
     
-    // FORM CONFIRMAÇÃO
+    // ========== FORM CONFIRMAÇÃO ==========
     document.getElementById('formConfirma').addEventListener('submit', async function(e) {
       e.preventDefault();
       
@@ -502,7 +481,7 @@ function compartilharWhatsApp() {
       }
     });
     
-    // SORTEIO
+    // ========== SORTEIO ==========
     function sortearTimes(confirmados) {
       confirmados = JSON.parse(JSON.stringify(confirmados));
       
@@ -562,7 +541,7 @@ function compartilharWhatsApp() {
       return times;
     }
     
-    // RENDER TIMES
+    // ========== RENDER TIMES ==========
     function renderizarTimes() {
       if (!window.ultimoSorteio) return;
       
@@ -594,7 +573,7 @@ function compartilharWhatsApp() {
       document.getElementById('resultadoSorteio').innerHTML = html;
     }
     
-    // BOTÃO SORTEAR
+    // ========== BOTÃO SORTEAR ==========
     document.getElementById('sortearTimes').addEventListener('click', async function(e) {
       e.preventDefault();
       
@@ -622,19 +601,19 @@ function compartilharWhatsApp() {
       }
     });
     
-    // LIMPAR SORTEIO
+    // ========== LIMPAR SORTEIO ==========
     document.getElementById('limparSorteio').addEventListener('click', function() {
       document.getElementById('resultadoSorteio').innerHTML = '';
       this.style.display = 'none';
       window.ultimoSorteio = null;
     });
     
-    // WHATSAPP
+    // ========== WHATSAPP ==========
     function compartilharWhatsApp() {
       if (!window.ultimoSorteio) return;
       
       const numTimes = window.ultimoSorteio.length;
-      let mensagem = '🏐 *SORTEIO DOS TIMES - VÔLEI SEXTA*\n\n';
+      let mensagem = '🏐 *SORTEIO DOS TIMES - VÔLEI*\n\n';
       
       for (let i = 0; i < numTimes; i++) {
         mensagem += `*Time ${i + 1}*\n`;
@@ -646,10 +625,11 @@ function compartilharWhatsApp() {
         mensagem += '\n';
       }
       
-      window.open(`https://wa.me/5511986439388?text=${encodeURIComponent(mensagem)}`, '_blank');
+      const numero = whatsappNumber || '5511999999999';
+      window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
     }
     
-    // LIMPAR LISTA
+    // ========== LIMPAR LISTA ==========
     document.getElementById('limparConfirmados').addEventListener('click', async function(e) {
       e.preventDefault();
       
@@ -679,7 +659,7 @@ function compartilharWhatsApp() {
       }
     });
     
-    // LOGOUT
+    // ========== LOGOUT ==========
     async function fazerLogout() {
       const token = getToken();
       
@@ -702,7 +682,7 @@ function compartilharWhatsApp() {
       window.location.href = '/login.html';
     }
     
-    // ESTATÍSTICAS
+    // ========== ESTATÍSTICAS ==========
     async function carregarEstatisticas() {
       try {
         const token = getToken();
@@ -775,7 +755,7 @@ function compartilharWhatsApp() {
       }
     }
     
-    // INICIALIZAÇÃO
+    // ========== INICIALIZAÇÃO ==========
     verificarTokenInicial().then(valido => {
       if (valido) {
         atualizarLista();

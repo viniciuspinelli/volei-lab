@@ -39,7 +39,6 @@
     .nav-item:hover { background: rgba(255, 107, 0, 0.1); color: var(--text-primary); }
     .nav-item.active { background: rgba(255, 107, 0, 0.15); color: var(--accent); border-left: 3px solid var(--accent); }
     .sidebar-admin { border-top: 1px solid rgba(255,255,255,0.05); padding-top: var(--spacing-md); margin-top: auto; }
-    .nav-item.admin-logged { color: var(--accent); }
   
     .main-content { flex: 1; margin-left: var(--sidebar-width); padding: var(--spacing-xl); min-height: 100vh; }
     .page { display: none; max-width: 800px; margin: 0 auto; }
@@ -108,13 +107,6 @@
     .ranking-item .count { color: var(--text-muted); font-size: 14px; }
     .empty-state { text-align: center; padding: var(--spacing-xl); color: var(--text-muted); }
     
-    .login-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; align-items: center; justify-content: center; }
-    .login-modal.ativo { display: flex; }
-    .login-box { background: var(--bg-card); border-radius: var(--radius-lg); padding: 30px; max-width: 350px; width: 90%; border: 1px solid rgba(255,107,0,0.3); }
-    .login-box h3 { color: var(--accent); margin-bottom: 20px; text-align: center; }
-    .login-box input { width: 100%; margin-bottom: 12px; }
-    .login-erro { color: var(--danger); font-size: 13px; margin-bottom: 12px; text-align: center; display: none; }
-    
     .mensagem { text-align: center; padding: var(--spacing-md); margin-bottom: var(--spacing-md); border-radius: var(--radius-md); font-size: 14px; min-height: 20px; }
     .mensagem.sucesso { background: rgba(52,211,153,0.1); color: #34d399; }
     .mensagem.erro { background: rgba(239,68,68,0.1); color: var(--danger); }
@@ -124,7 +116,6 @@
     .bottom-nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 16px; color: var(--text-muted); text-decoration: none; font-size: 11px; font-weight: 500; border: none; background: transparent; cursor: pointer; transition: color 0.2s; }
     .bottom-nav-item .icon { font-size: 22px; }
     .bottom-nav-item.active { color: var(--accent); }
-    .bottom-nav-item.admin-logged { color: var(--accent); }
     
     @media (max-width: 768px) {
       .sidebar { display: none; }
@@ -158,11 +149,7 @@
         </button>
       </nav>
       <div class="sidebar-admin">
-        <button class="nav-item" id="btnAdminSidebar" onclick="abrirLogin()">
-          <span class="icon">🔐</span>
-          <span>Admin</span>
-        </button>
-        <button class="nav-item admin-logged" id="btnLogoutSidebar" onclick="fazerLogout()" style="display:none;">
+        <button class="nav-item" onclick="fazerLogout()">
           <span class="icon">🚪</span>
           <span>Sair</span>
         </button>
@@ -276,27 +263,12 @@
         <span class="icon">📊</span>
         <span>Estatísticas</span>
       </button>
-      <button class="bottom-nav-item" id="btnAdminMobile" onclick="abrirLogin()">
-        <span class="icon">🔐</span>
-        <span>Admin</span>
-      </button>
-      <button class="bottom-nav-item admin-logged" id="btnLogoutMobile" onclick="fazerLogout()" style="display:none;">
+      <button class="bottom-nav-item" onclick="fazerLogout()">
         <span class="icon">🚪</span>
         <span>Sair</span>
       </button>
     </div>
   </nav>
-
-  <div class="login-modal" id="loginModal">
-    <div class="login-box">
-      <h3>Login Admin</h3>
-      <div class="login-erro" id="loginErro"></div>
-      <input type="text" id="loginUsuario" placeholder="Usuário">
-      <input type="password" id="loginSenha" placeholder="Senha">
-      <button class="btn btn-primary btn-block" onclick="fazerLogin()">Entrar</button>
-      <button class="btn btn-secondary btn-block" onclick="fecharLogin()" style="margin-top:8px;">Cancelar</button>
-    </div>
-  </div>
 
   <script>
     let currentTenantId = null;
@@ -326,7 +298,6 @@
           return false;
         }
         
-        // Verificar se mudou de tenant
         const lastTenantId = localStorage.getItem('lastTenantId');
         currentTenantId = result.tenant_id;
         
@@ -573,30 +544,19 @@
       
       const times = window.ultimoSorteio;
       const numTimes = times.length;
-      const canDrag = isAdmin;
       
       let html = '<div class="card">';
       html += '<h3 class="card-title">Times Sorteados</h3>';
-      
-      if (canDrag) {
-        html += '<div class="admin-hint">💡 Arraste os jogadores para trocar de time</div>';
-      }
-      
       html += '<div class="times-grid">';
       
       for (let i = 0; i < numTimes; i++) {
         html += `<div class="time-card" data-time="${i}">`;
         html += `<h4>Time ${i + 1}</h4>`;
-        html += `<ul ${canDrag ? 'class="drag-target"' : ''} data-time="${i}">`;
+        html += `<ul data-time="${i}">`;
         
         times[i].forEach((p, j) => {
           const badge = p.genero ? `<span class="badge badge-${p.genero}">${p.genero === 'masculino' ? '♂' : '♀'}</span>` : '';
-          
-          if (canDrag && p.nome !== 'Vaga Livre') {
-            html += `<li class="draggable" draggable="true" data-time="${i}" data-index="${j}">${p.nome} ${badge}</li>`;
-          } else {
-            html += `<li>${p.nome} ${badge}</li>`;
-          }
+          html += `<li>${p.nome} ${badge}</li>`;
         });
         
         html += '</ul>';
@@ -608,57 +568,6 @@
       html += '</div>';
       
       document.getElementById('resultadoSorteio').innerHTML = html;
-      
-      if (canDrag) {
-        initDragAndDrop();
-      }
-    }
-    
-    // DRAG AND DROP
-    function initDragAndDrop() {
-      let draggedItem = null;
-      let draggedFromTime = null;
-      let draggedIndex = null;
-      
-      document.querySelectorAll('.draggable').forEach(item => {
-        item.addEventListener('dragstart', function(e) {
-          draggedItem = this;
-          draggedFromTime = parseInt(this.dataset.time);
-          draggedIndex = parseInt(this.dataset.index);
-          this.classList.add('dragging');
-          e.dataTransfer.effectAllowed = 'move';
-        });
-        
-        item.addEventListener('dragend', function() {
-          this.classList.remove('dragging');
-          document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
-        });
-        
-        item.addEventListener('dragover', function(e) {
-          e.preventDefault();
-          if (this !== draggedItem) {
-            this.classList.add('drag-over');
-          }
-        });
-        
-        item.addEventListener('dragleave', function() {
-          this.classList.remove('drag-over');
-        });
-        
-        item.addEventListener('drop', function(e) {
-          e.preventDefault();
-          if (this === draggedItem) return;
-          
-          const targetTime = parseInt(this.dataset.time);
-          const targetIndex = parseInt(this.dataset.index);
-          
-          const temp = window.ultimoSorteio[draggedFromTime][draggedIndex];
-          window.ultimoSorteio[draggedFromTime][draggedIndex] = window.ultimoSorteio[targetTime][targetIndex];
-          window.ultimoSorteio[targetTime][targetIndex] = temp;
-          
-          renderizarTimes();
-        });
-      });
     }
     
     // BOTÃO SORTEAR
@@ -746,49 +655,7 @@
       }
     });
     
-    // SISTEMA ADMIN
-    function abrirLogin() {
-      document.getElementById('loginModal').classList.add('ativo');
-      document.getElementById('loginUsuario').focus();
-    }
-    
-    function fecharLogin() {
-      document.getElementById('loginModal').classList.remove('ativo');
-      document.getElementById('loginUsuario').value = '';
-      document.getElementById('loginSenha').value = '';
-      document.getElementById('loginErro').style.display = 'none';
-    }
-    
-    async function fazerLogin() {
-      const usuario = document.getElementById('loginUsuario').value;
-      const senha = document.getElementById('loginSenha').value;
-      
-      try {
-        const res = await fetch('/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ usuario, senha })
-        });
-        
-        const data = await res.json();
-        
-        if (data.sucesso) {
-          adminToken = data.token;
-          isAdmin = true;
-          fecharLogin();
-          atualizarUIAdmin();
-          carregarEstatisticas();
-          mostrarMensagem('Login realizado com sucesso!', 'sucesso');
-        } else {
-          document.getElementById('loginErro').textContent = data.erro || 'Credenciais inválidas';
-          document.getElementById('loginErro').style.display = 'block';
-        }
-      } catch (err) {
-        document.getElementById('loginErro').textContent = 'Erro de conexão';
-        document.getElementById('loginErro').style.display = 'block';
-      }
-    }
-    
+    // LOGOUT
     async function fazerLogout() {
       const token = getToken();
       
@@ -806,58 +673,9 @@
         }
       }
       
-      // Limpar TUDO
-      adminToken = null;
-      isAdmin = false;
-      window.ultimoSorteio = null;
       localStorage.removeItem('adminToken');
       localStorage.removeItem('lastTenantId');
-      
-      // Redirecionar para login
       window.location.href = '/login.html';
-    }
-    
-    function atualizarUIAdmin() {
-      document.getElementById('btnAdminSidebar').style.display = isAdmin ? 'none' : 'flex';
-      document.getElementById('btnLogoutSidebar').style.display = isAdmin ? 'flex' : 'none';
-      document.getElementById('btnAdminMobile').style.display = isAdmin ? 'none' : 'flex';
-      document.getElementById('btnLogoutMobile').style.display = isAdmin ? 'flex' : 'none';
-      
-      if (window.ultimoSorteio) renderizarTimes();
-    }
-    
-    // REMOVER DAS ESTATÍSTICAS
-    async function removerDasEstatisticas(nome) {
-      if (!confirm(`Remover "${nome}" das estatísticas permanentemente?\n\nIsso apagará TODAS as confirmações dessa pessoa.`)) return;
-      
-      try {
-        const headers = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken}`
-        };
-        
-        const res = await fetch(`/estatisticas/pessoa/${encodeURIComponent(nome)}`, {
-          method: 'DELETE',
-          headers
-        });
-        
-        if (res.status === 401) {
-          handleUnauthorized();
-          return;
-        }
-        
-        const data = await res.json();
-        
-        if (data.sucesso || res.ok) {
-          mostrarMensagem('Pessoa removida das estatísticas!', 'sucesso');
-          carregarEstatisticas();
-        } else {
-          throw new Error(data.erro || 'Erro ao remover pessoa.');
-        }
-      } catch (err) {
-        console.error('Erro ao remover:', err);
-        mostrarMensagem(err.message || 'Erro ao remover pessoa.', 'erro');
-      }
     }
     
     // ESTATÍSTICAS
@@ -865,16 +683,9 @@
       try {
         const token = getToken();
         
-        const headers = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        };
-        
-        if (adminToken) {
-          headers['Authorization'] = `Bearer ${adminToken}`;
-        }
-        
-        const res = await fetch('/estatisticas', { headers });
+        const res = await fetch('/estatisticas', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         
         if (res.status === 401) {
           handleUnauthorized();
@@ -928,15 +739,6 @@
           countSpan.textContent = `${presencas} presenças`;
           rightDiv.appendChild(countSpan);
           
-          if (isAdmin) {
-            const btnRemove = document.createElement('button');
-            btnRemove.className = 'btn-remove';
-            btnRemove.textContent = '✕';
-            btnRemove.title = `Remover ${r.nome} das estatísticas`;
-            btnRemove.addEventListener('click', () => removerDasEstatisticas(r.nome));
-            rightDiv.appendChild(btnRemove);
-          }
-          
           li.appendChild(leftDiv);
           li.appendChild(rightDiv);
           ul.appendChild(li);
@@ -953,7 +755,6 @@
     verificarTokenInicial().then(valido => {
       if (valido) {
         atualizarLista();
-        atualizarUIAdmin();
       }
     });
   </script>

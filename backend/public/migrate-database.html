@@ -5,58 +5,64 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Migração de Database</title>
   <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: monospace;
-      background: #1a1a1a;
+      font-family: 'Courier New', monospace;
+      background: #0a0a0a;
       color: #fff;
-      padding: 20px;
-      max-width: 800px;
-      margin: 0 auto;
+      padding: 40px 20px;
+      min-height: 100vh;
     }
-    h1 { color: #ff6b00; }
-    .log {
-      background: #000;
-      padding: 15px;
-      border-radius: 8px;
-      margin: 20px 0;
-      max-height: 500px;
-      overflow-y: auto;
-    }
-    .log p {
-      margin: 5px 0;
-      font-size: 13px;
-    }
-    .success { color: #34d399; }
-    .error { color: #ef4444; }
-    .warning { color: #fbbf24; }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { color: #ff6b00; margin-bottom: 10px; font-size: 32px; }
+    .subtitle { color: #888; margin-bottom: 30px; font-size: 14px; }
     button {
-      background: #ff6b00;
+      background: linear-gradient(135deg, #ff6b00, #cc5500);
       color: #000;
       border: none;
-      padding: 12px 24px;
+      padding: 14px 32px;
       border-radius: 8px;
       cursor: pointer;
       font-weight: bold;
       font-size: 16px;
+      margin: 10px 5px;
+      transition: transform 0.2s;
     }
-    button:hover { background: #ff8533; }
-    button:disabled {
-      background: #666;
-      cursor: not-allowed;
+    button:hover { transform: translateY(-2px); }
+    button:disabled { background: #444; cursor: not-allowed; transform: none; }
+    .log {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 30px;
+      max-height: 500px;
+      overflow-y: auto;
+      font-size: 13px;
+      line-height: 1.8;
     }
+    .log p { margin: 5px 0; padding: 4px 0; }
+    .success { color: #34d399; }
+    .error { color: #ef4444; }
+    .warning { color: #fbbf24; }
+    .info { color: #60a5fa; }
   </style>
 </head>
 <body>
-  <h1>🔧 Migração de Database</h1>
-  <p>Este script vai adicionar suporte multi-tenant ao banco de dados.</p>
-  
-  <button id="btnMigrar" onclick="executarMigracao()">Executar Migração</button>
-  
-  <div class="log" id="log"></div>
+  <div class="container">
+    <h1>🔧 Migração de Database</h1>
+    <p class="subtitle">Corrige estrutura do banco de dados</p>
+    
+    <button onclick="executarCorrecao()">🛠️ Corrigir Estrutura</button>
+    <button onclick="executarMigracao()">🚀 Executar Migração Completa</button>
+    
+    <div class="log" id="log" style="display: none;"></div>
+  </div>
   
   <script>
-    function addLog(msg, type = 'success') {
+    function addLog(msg, type = 'info') {
       const log = document.getElementById('log');
+      log.style.display = 'block';
       const p = document.createElement('p');
       p.className = type;
       p.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
@@ -64,11 +70,40 @@
       log.scrollTop = log.scrollHeight;
     }
     
-    async function executarMigracao() {
-      const btn = document.getElementById('btnMigrar');
-      btn.disabled = true;
+    async function executarCorrecao() {
+      document.querySelectorAll('button').forEach(b => b.disabled = true);
+      addLog('Iniciando correção de estrutura...', 'warning');
       
-      addLog('🚀 Iniciando migração...', 'warning');
+      try {
+        const response = await fetch('/api/fix-schema', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const result = await response.json();
+        
+        if (result.sucesso) {
+          addLog('✅ Estrutura corrigida com sucesso!', 'success');
+          result.logs.forEach(log => addLog(log, 'success'));
+          
+          setTimeout(() => {
+            if (confirm('Correção concluída! Ir para o painel admin?')) {
+              window.location.href = '/admin-panel.html';
+            }
+          }, 1500);
+        } else {
+          addLog(`❌ Erro: ${result.erro}`, 'error');
+        }
+      } catch (err) {
+        addLog(`❌ Erro: ${err.message}`, 'error');
+      } finally {
+        document.querySelectorAll('button').forEach(b => b.disabled = false);
+      }
+    }
+    
+    async function executarMigracao() {
+      document.querySelectorAll('button').forEach(b => b.disabled = true);
+      addLog('Iniciando migração completa...', 'warning');
       
       try {
         const response = await fetch('/api/migrate', {
@@ -79,21 +114,15 @@
         const result = await response.json();
         
         if (result.sucesso) {
-          addLog('✅ Migração concluída com sucesso!', 'success');
+          addLog('✅ Migração concluída!', 'success');
           result.logs.forEach(log => addLog(log, 'success'));
-          
-          setTimeout(() => {
-            if (confirm('Migração concluída! Deseja ir para o painel admin?')) {
-              window.location.href = '/admin-panel.html';
-            }
-          }, 1000);
         } else {
           addLog(`❌ Erro: ${result.erro}`, 'error');
         }
       } catch (err) {
-        addLog(`❌ Erro de conexão: ${err.message}`, 'error');
+        addLog(`❌ Erro: ${err.message}`, 'error');
       } finally {
-        btn.disabled = false;
+        document.querySelectorAll('button').forEach(b => b.disabled = false);
       }
     }
   </script>

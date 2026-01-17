@@ -562,6 +562,69 @@ app.post('/api/migrate', async (req, res) => {
   }
 });
 
+// ==================== ROTA DE CORREÇÃO DE SCHEMA ====================
+app.post('/api/fix-schema', async (req, res) => {
+  const logs = [];
+  
+  try {
+    logs.push('🔧 Corrigindo estrutura da tabela tenants...');
+    
+    // Adicionar coluna criado_em se não existir
+    await pool.query(`
+      ALTER TABLE tenants 
+      ADD COLUMN IF NOT EXISTS criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    `);
+    logs.push('✅ Coluna criado_em adicionada/verificada');
+    
+    // Adicionar outras colunas que possam estar faltando
+    await pool.query(`
+      ALTER TABLE tenants 
+      ADD COLUMN IF NOT EXISTS nome VARCHAR(255) NOT NULL DEFAULT 'Time Sem Nome'
+    `);
+    logs.push('✅ Coluna nome verificada');
+    
+    await pool.query(`
+      ALTER TABLE tenants 
+      ADD COLUMN IF NOT EXISTS subdomain VARCHAR(100)
+    `);
+    logs.push('✅ Coluna subdomain verificada');
+    
+    await pool.query(`
+      ALTER TABLE tenants 
+      ADD COLUMN IF NOT EXISTS whatsapp_number VARCHAR(20)
+    `);
+    logs.push('✅ Coluna whatsapp_number verificada');
+    
+    await pool.query(`
+      ALTER TABLE tenants 
+      ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending'
+    `);
+    logs.push('✅ Coluna status verificada');
+    
+    await pool.query(`
+      ALTER TABLE tenants 
+      ADD COLUMN IF NOT EXISTS plano VARCHAR(20) DEFAULT 'mensal'
+    `);
+    logs.push('✅ Coluna plano verificada');
+    
+    // Atualizar registros existentes sem criado_em
+    await pool.query(`
+      UPDATE tenants 
+      SET criado_em = CURRENT_TIMESTAMP 
+      WHERE criado_em IS NULL
+    `);
+    logs.push('✅ Datas de criação atualizadas');
+    
+    logs.push('🎉 Correção de estrutura concluída!');
+    
+    res.json({ sucesso: true, logs });
+  } catch (err) {
+    console.error('Erro na correção:', err);
+    logs.push(`❌ Erro: ${err.message}`);
+    res.status(500).json({ sucesso: false, erro: err.message, logs });
+  }
+});
+
 
 // ==================== INICIAR SERVIDOR ====================
 app.listen(PORT, () => {

@@ -4,30 +4,32 @@ const urlsToCache = [
   '/index.html',
   '/login.html',
   '/registro.html',
-  '/manifest.json',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap'
+  '/manifest.json'
 ];
 
 // Instalar Service Worker
 self.addEventListener('install', event => {
+  console.log('🔧 Service Worker: Instalando...');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Cache aberto');
+        console.log('✅ Cache aberto');
         return cache.addAll(urlsToCache);
       })
+      .catch(err => console.error('❌ Erro ao adicionar ao cache:', err))
   );
   self.skipWaiting();
 });
 
 // Ativar Service Worker
 self.addEventListener('activate', event => {
+  console.log('🔧 Service Worker: Ativando...');
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheName !== CACHE_NAME) {
-            console.log('Removendo cache antigo:', cacheName);
+            console.log('🗑️ Removendo cache antigo:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -37,38 +39,66 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Interceptar requisições
+// Interceptar requisições (com filtro de schemes válidos)
 self.addEventListener('fetch', event => {
+  const { request } = event;
+  const url = new URL(request.url);
+  
+  // ✅ FILTRAR: Ignorar requisições não HTTP/HTTPS
+  if (!request.url.startsWith('http')) {
+    return; // Ignora chrome-extension://, devtools://, etc
+  }
+  
+  // ✅ FILTRAR: Ignorar requisições POST/PUT/DELETE (apenas GET)
+  if (request.method !== 'GET') {
+    return;
+  }
+  
   event.respondWith(
-    caches.match(event.request)
+    caches.match(request)
       .then(response => {
-        // Cache hit - retorna a resposta
         if (response) {
-          return response;
+          return response; // Retorna do cache
         }
         
-        // Clone a requisição
-        const fetchRequest = event.request.clone();
+        // Clone da requisição
+        const fetchRequest = request.clone();
         
-        return fetch(fetchRequest).then(response => {
-          // Verifica se é uma resposta válida
-          if (!response || response.status !== 200 || response.type !== 'basic') {
+        return fetch(fetchRequest)
+          .then(response => {
+            // Verifica se é uma resposta válida
+            if (!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
+            
+            // Clone da resposta para cachear
+            const responseToCache = response.clone();
+            
+            caches.open(CACHE_NAME)
+              .then(cache => {
+                // ✅ FILTRAR: Não cachear APIs
+                if (!url.pathname.startsWith('/api/') && 
+                    !url.pathname.startsWith('/confirmar') &&
+                    !url.pathname.startsWith('/confirmados')) {
+                  cache.put(request, responseToCache);
+                }
+              });
+            
             return response;
-          }
-          
-          // Clone a resposta
-          const responseToCache = response.clone();
-          
-          caches.open(CACHE_NAME)
-            .then(cache => {
-              cache.put(event.request, responseToCache);
-            });
-          
-          return response;
-        }).catch(() => {
-          // Se falhar, retorna página offline (opcional)
-          return caches.match('/index.html');
-        });
+          })
+          .catch(error => {
+            console.log('📡 Offline - tentando cache:', error);
+            return caches.match('/index.html');
+          });
       })
   );
 });
+
+// Mensagem de status
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+console.log('✅ Service Worker carregado!');

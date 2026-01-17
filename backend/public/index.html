@@ -488,9 +488,13 @@ function sortearTimes(confirmados) {
     times[index % numTimes].push(homem);
   });
   
-  // PREENCHER COM VAGAS LIVRES ATÉ 6 PESSOAS POR TIME
+  // CALCULAR O TAMANHO MÁXIMO ATUAL
+  const maxSize = Math.max(...times.map(t => t.length));
+  
+  // PREENCHER APENAS SE O TIME TIVER MENOS QUE O MÁXIMO
+  // (não preenche se já estiver balanceado)
   for (let i = 0; i < numTimes; i++) {
-    while (times[i].length < 6) {
+    while (times[i].length < maxSize) {
       times[i].push({nome: 'Vaga Livre', genero: '', tipo: ''});
     }
   }

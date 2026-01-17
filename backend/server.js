@@ -461,6 +461,108 @@ app.put('/api/admin/tenants/:id', verificarMasterAdmin, async (req, res) => {
   }
 });
 
+// ==================== ROTA DE MIGRAÇÃO ====================
+app.post('/api/migrate', async (req, res) => {
+  const logs = [];
+  
+  try {
+    logs.push('📦 Iniciando migração...');
+    
+    // 1. Criar tabela de tenants se não existir
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS tenants (
+        id SERIAL PRIMARY KEY,
+        nome VARCHAR(255) NOT NULL,
+        subdomain VARCHAR(100),
+        whatsapp_number VARCHAR(20),
+        status VARCHAR(20) DEFAULT 'pending',
+        plano VARCHAR(20) DEFAULT 'mensal',
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    logs.push('✅ Tabela tenants criada');
+    
+    // 2. Verificar se já existe tenant padrão
+    const tenantCheck = await pool.query('SELECT COUNT(*) FROM tenants');
+    let tenantId;
+    
+    if (parseInt(tenantCheck.rows[0].count) === 0) {
+      const tenantResult = await pool.query(`
+        INSERT INTO tenants (nome, subdomain, whatsapp_number, status, plano)
+        VALUES ('Time Principal', 'default', '5511999999999', 'active', 'mensal')
+        RETURNING id
+      `);
+      tenantId = tenantResult.rows[0].id;
+      logs.push(`✅ Tenant padrão criado (ID: ${tenantId})`);
+    } else {
+      const tenant = await pool.query('SELECT id FROM tenants LIMIT 1');
+      tenantId = tenant.rows[0].id;
+      logs.push(`✅ Tenant existente encontrado (ID: ${tenantId})`);
+    }
+    
+    // 3. Adicionar coluna tenant_id em admins se não existir
+    try {
+      await pool.query('ALTER TABLE admins ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE');
+      logs.push('✅ Coluna tenant_id adicionada em admins');
+    } catch (e) {
+      logs.push('⚠️ Coluna tenant_id já existe em admins');
+    }
+    
+    // 4. Atualizar admins sem tenant_id
+    await pool.query('UPDATE admins SET tenant_id = $1 WHERE tenant_id IS NULL', [tenantId]);
+    logs.push('✅ Admins associados ao tenant');
+    
+    // 5. Adicionar coluna tenant_id em admin_tokens se não existir
+    try {
+      await pool.query('ALTER TABLE admin_tokens ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE');
+      logs.push('✅ Coluna tenant_id adicionada em admin_tokens');
+    } catch (e) {
+      logs.push('⚠️ Coluna tenant_id já existe em admin_tokens');
+    }
+    
+    // 6. Atualizar tokens sem tenant_id
+    await pool.query(`
+      UPDATE admin_tokens 
+      SET tenant_id = $1 
+      WHERE tenant_id IS NULL
+    `, [tenantId]);
+    logs.push('✅ Tokens associados ao tenant');
+    
+    // 7. Adicionar coluna tenant_id em confirmados_atual se não existir
+    try {
+      await pool.query('ALTER TABLE confirmados_atual ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE');
+      logs.push('✅ Coluna tenant_id adicionada em confirmados_atual');
+    } catch (e) {
+      logs.push('⚠️ Coluna tenant_id já existe em confirmados_atual');
+    }
+    
+    // 8. Atualizar confirmados sem tenant_id
+    await pool.query('UPDATE confirmados_atual SET tenant_id = $1 WHERE tenant_id IS NULL', [tenantId]);
+    logs.push('✅ Confirmados associados ao tenant');
+    
+    // 9. Adicionar coluna tenant_id em historico_confirmacoes se não existir
+    try {
+      await pool.query('ALTER TABLE historico_confirmacoes ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE');
+      logs.push('✅ Coluna tenant_id adicionada em historico_confirmacoes');
+    } catch (e) {
+      logs.push('⚠️ Coluna tenant_id já existe em historico_confirmacoes');
+    }
+    
+    // 10. Atualizar histórico sem tenant_id
+    await pool.query('UPDATE historico_confirmacoes SET tenant_id = $1 WHERE tenant_id IS NULL', [tenantId]);
+    logs.push('✅ Histórico associado ao tenant');
+    
+    logs.push('🎉 Migração concluída com sucesso!');
+    
+    res.json({ sucesso: true, logs });
+  } catch (err) {
+    console.error('Erro na migração:', err);
+    logs.push(`❌ Erro: ${err.message}`);
+    res.status(500).json({ sucesso: false, erro: err.message, logs });
+  }
+});
+
+
 // ==================== INICIAR SERVIDOR ====================
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);

@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel Admin - Volei Lab</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container { max-width: 1400px; margin: 0 auto; }
+    
+    .header {
+      background: rgba(255,107,0,0.1);
+      border: 1px solid rgba(255,107,0,0.3);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .header h1 { 
+      font-size: 28px; 
+      color: #ff6b00;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
+    }
+    
+    .btn-danger {
+      background: rgba(239,68,68,0.2);
+      color: #ef4444;
+      border: 1px solid rgba(239,68,68,0.3);
+    }
+    
+    .btn-danger:hover {
+      background: rgba(239,68,68,0.3);
+    }
+    
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .stat-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 36px;
+      font-weight: 700;
+      color: #ff6b00;
+      margin-bottom: 8px;
+    }
+    
+    .stat-label {
+      color: #999;
+      font-size: 14px;
+    }
+    
+    .table-container {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    
+    .table-header {
+      padding: 16px 24px;
+      background: rgba(255,107,0,0.1);
+      border-bottom: 1px solid rgba(255,107,0,0.3);
+    }
+    
+    .table-header h2 {
+      font-size: 18px;
+      color: #ff6b00;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    thead {
+      background: rgba(255,255,255,0.05);
+    }
+    
+    th {
+      padding: 16px;
+      text-align: left;
+      font-weight: 600;
+      color: #ccc;
+      font-size: 13px;
+      text-transform: uppercase;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    td {
+      padding: 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 14px;
+    }
+    
+    tbody tr {
+      transition: background 0.2s;
+    }
+    
+    tbody tr:hover {
+      background: rgba(255,255,255,0.03);
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .badge-active {
+      background: rgba(52,211,153,0.2);
+      color: #34d399;
+    }
+    
+    .badge-inactive {
+      background: rgba(239,68,68,0.2);
+      color: #ef4444;
+    }
+    
+    .badge-pending {
+      background: rgba(251,191,36,0.2);
+      color: #fbbf24;
+    }
+    
+    .badge-mensal {
+      background: rgba(59,130,246,0.2);
+      color: #3b82f6;
+    }
+    
+    .badge-anual {
+      background: rgba(168,85,247,0.2);
+      color: #a855f7;
+    }
+    
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    
+    .btn-success {
+      background: rgba(52,211,153,0.2);
+      color: #34d399;
+      border: 1px solid rgba(52,211,153,0.3);
+    }
+    
+    .btn-success:hover {
+      background: rgba(52,211,153,0.3);
+    }
+    
+    .btn-warning {
+      background: rgba(251,191,36,0.2);
+      color: #fbbf24;
+      border: 1px solid rgba(251,191,36,0.3);
+    }
+    
+    .btn-warning:hover {
+      background: rgba(251,191,36,0.3);
+    }
+    
+    .btn-info {
+      background: rgba(59,130,246,0.2);
+      color: #3b82f6;
+      border: 1px solid rgba(59,130,246,0.3);
+    }
+    
+    .btn-info:hover {
+      background: rgba(59,130,246,0.3);
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #666;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: #ff6b00;
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal.active {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: #2d2d2d;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 500px;
+      width: 90%;
+      border: 1px solid rgba(255,107,0,0.3);
+    }
+    
+    .modal-header {
+      margin-bottom: 20px;
+    }
+    
+    .modal-header h3 {
+      color: #ff6b00;
+      font-size: 20px;
+    }
+    
+    .form-group {
+      margin-bottom: 16px;
+    }
+    
+    .form-label {
+      display: block;
+      margin-bottom: 6px;
+      color: #ccc;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    
+    select, input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.05);
+      color: #fff;
+      font-size: 14px;
+    }
+    
+    select:focus, input:focus {
+      outline: none;
+      border-color: #ff6b00;
+    }
+    
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    
+    .btn-block {
+      flex: 1;
+    }
+    
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 14px;
+    }
+    
+    .alert-success {
+      background: rgba(52,211,153,0.1);
+      color: #34d399;
+      border: 1px solid rgba(52,211,153,0.3);
+    }
+    
+    .alert-error {
+      background: rgba(239,68,68,0.1);
+      color: #ef4444;
+      border: 1px solid rgba(239,68,68,0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>
+        <span>🛡️</span>
+        Painel Administrativo
+      </h1>
+      <button class="btn btn-danger" onclick="fazerLogout()">Sair</button>
+    </div>
+    
+    <div id="alertContainer"></div>
+    
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-value" id="totalTenants">0</div>
+        <div class="stat-label">Total de Times</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="activeTeams">0</div>
+        <div class="stat-label">Times Ativos</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="pendingTeams">0</div>
+        <div class="stat-label">Aguardando Pagamento</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="inactiveTeams">0</div>
+        <div class="stat-label">Times Inativos</div>
+      </div>
+    </div>
+    
+    <div class="table-container">
+      <div class="table-header">
+        <h2>Gerenciar Times / Usuários</h2>
+      </div>
+      
+      <div id="tableContent">
+        <div class="loading">⏳ Carregando...</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Modal Editar -->
+  <div class="modal" id="editModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>✏️ Editar Time</h3>
+      </div>
+      
+      <div id="modalAlert"></div>
+      
+      <form id="editForm">
+        <input type="hidden" id="editTenantId">
+        
+        <div class="form-group">
+          <label class="form-label">Nome do Time</label>
+          <input type="text" id="editNome" readonly style="opacity: 0.6;">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="editEmail" readonly style="opacity: 0.6;">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">WhatsApp</label>
+          <input type="text" id="editWhatsapp" readonly style="opacity: 0.6;">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Status do Pagamento</label>
+          <select id="editStatus" required>
+            <option value="pending">⏳ Pendente</option>
+            <option value="active">✅ Ativo (Pago)</option>
+            <option value="inactive">❌ Inativo</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Plano</label>
+          <select id="editPlano" required>
+            <option value="mensal">📅 Mensal</option>
+            <option value="anual">📆 Anual</option>
+          </select>
+        </div>
+        
+        <div class="modal-actions">
+          <button type="button" class="btn btn-warning btn-block" onclick="fecharModal()">Cancelar</button>
+          <button type="submit" class="btn btn-success btn-block">Salvar Alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <script>
+    const MASTER_PASSWORD = 'admin@2026volei'; // Senha master para acessar o painel
+    
+    // Verificar senha ao carregar
+    function verificarAcesso() {
+      const senhaArmazenada = sessionStorage.getItem('masterAdmin');
+      
+      if (senhaArmazenada !== MASTER_PASSWORD) {
+        const senha = prompt('🔐 Digite a senha master para acessar o painel:');
+        
+        if (senha !== MASTER_PASSWORD) {
+          alert('❌ Senha incorreta!');
+          window.location.href = '/login.html';
+          return false;
+        }
+        
+        sessionStorage.setItem('masterAdmin', senha);
+      }
+      
+      return true;
+    }
+    
+    if (!verificarAcesso()) {
+      throw new Error('Acesso negado');
+    }
+    
+    function showAlert(message, type = 'success') {
+      const container = document.getElementById('alertContainer');
+      const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
+      container.innerHTML = `<div class="alert ${alertClass}">${message}</div>`;
+      setTimeout(() => container.innerHTML = '', 5000);
+    }
+    
+    async function carregarTenants() {
+      try {
+        const response = await fetch('/api/admin/tenants', {
+          headers: {
+            'Authorization': 'Bearer ' + MASTER_PASSWORD
+          }
+        });
+        
+        if (!response.ok) throw new Error('Erro ao carregar');
+        
+        const tenants = await response.json();
+        
+        // Atualizar stats
+        document.getElementById('totalTenants').textContent = tenants.length;
+        document.getElementById('activeTeams').textContent = tenants.filter(t => t.status === 'active').length;
+        document.getElementById('pendingTeams').textContent = tenants.filter(t => t.status === 'pending').length;
+        document.getElementById('inactiveTeams').textContent = tenants.filter(t => t.status === 'inactive').length;
+        
+        // Renderizar tabela
+        renderTable(tenants);
+      } catch (err) {
+        console.error(err);
+        document.getElementById('tableContent').innerHTML = '<div class="empty-state">❌ Erro ao carregar dados</div>';
+      }
+    }
+    
+    function renderTable(tenants) {
+      if (tenants.length === 0) {
+        document.getElementById('tableContent').innerHTML = '<div class="empty-state">📋 Nenhum time cadastrado ainda</div>';
+        return;
+      }
+      
+      let html = `
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nome do Time</th>
+              <th>Email</th>
+              <th>WhatsApp</th>
+              <th>Plano</th>
+              <th>Status</th>
+              <th>Criado em</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      
+      tenants.forEach(t => {
+        const statusBadge = getStatusBadge(t.status);
+        const planoBadge = t.plano === 'anual' ? 
+          '<span class="badge badge-anual">Anual</span>' : 
+          '<span class="badge badge-mensal">Mensal</span>';
+        
+        const dataFormatada = new Date(t.criado_em).toLocaleDateString('pt-BR');
+        
+        html += `
+          <tr>
+            <td>${t.id}</td>
+            <td><strong>${t.nome}</strong></td>
+            <td>${t.email || '-'}</td>
+            <td>${t.whatsapp_number || '-'}</td>
+            <td>${planoBadge}</td>
+            <td>${statusBadge}</td>
+            <td>${dataFormatada}</td>
+            <td>
+              <div class="actions">
+                <button class="btn btn-info btn-sm" onclick="editarTenant(${t.id})">✏️ Editar</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+      
+      html += '</tbody></table>';
+      document.getElementById('tableContent').innerHTML = html;
+    }
+    
+    function getStatusBadge(status) {
+      switch(status) {
+        case 'active':
+          return '<span class="badge badge-active">✅ Ativo</span>';
+        case 'pending':
+          return '<span class="badge badge-pending">⏳ Pendente</span>';
+        case 'inactive':
+          return '<span class="badge badge-inactive">❌ Inativo</span>';
+        default:
+          return '<span class="badge badge-pending">-</span>';
+      }
+    }
+    
+    async function editarTenant(id) {
+      try {
+        const response = await fetch(`/api/admin/tenants/${id}`, {
+          headers: {
+            'Authorization': 'Bearer ' + MASTER_PASSWORD
+          }
+        });
+        
+        const tenant = await response.json();
+        
+        document.getElementById('editTenantId').value = tenant.id;
+        document.getElementById('editNome').value = tenant.nome;
+        document.getElementById('editEmail').value = tenant.email || '';
+        document.getElementById('editWhatsapp').value = tenant.whatsapp_number || '';
+        document.getElementById('editStatus').value = tenant.status;
+        document.getElementById('editPlano').value = tenant.plano;
+        
+        document.getElementById('editModal').classList.add('active');
+      } catch (err) {
+        showAlert('❌ Erro ao carregar dados do tenant', 'error');
+      }
+    }
+    
+    function fecharModal() {
+      document.getElementById('editModal').classList.remove('active');
+      document.getElementById('modalAlert').innerHTML = '';
+    }
+    
+    document.getElementById('editForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const id = document.getElementById('editTenantId').value;
+      const status = document.getElementById('editStatus').value;
+      const plano = document.getElementById('editPlano').value;
+      
+      try {
+        const response = await fetch(`/api/admin/tenants/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + MASTER_PASSWORD
+          },
+          body: JSON.stringify({ status, plano })
+        });
+        
+        const result = await response.json();
+        
+        if (result.sucesso) {
+          showAlert('✅ Tenant atualizado com sucesso!', 'success');
+          fecharModal();
+          carregarTenants();
+        } else {
+          throw new Error(result.erro || 'Erro ao atualizar');
+        }
+      } catch (err) {
+        document.getElementById('modalAlert').innerHTML = `
+          <div class="alert alert-error">❌ ${err.message}</div>
+        `;
+      }
+    });
+    
+    function fazerLogout() {
+      sessionStorage.removeItem('masterAdmin');
+      window.location.href = '/login.html';
+    }
+    
+    // Carregar ao iniciar
+    carregarTenants();
+    
+    // Atualizar a cada 30 segundos
+    setInterval(carregarTenants, 30000);
+  </script>
+</body>
+</html>

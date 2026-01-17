@@ -86,6 +86,11 @@ async function initDB() {
       )
     `);
     
+      await client.query(`
+  ALTER TABLE tenants 
+  ADD COLUMN IF NOT EXISTS plano VARCHAR(20) DEFAULT 'mensal'
+`);
+
     await client.query('COMMIT');
     console.log('✅ Tabelas criadas/verificadas com sucesso!');
     
@@ -565,6 +570,89 @@ app.delete('/estatisticas/pessoa/:nome', verificarAdmin, async (req, res) => {
     res.status(500).json({ erro: 'Erro ao remover pessoa das estatísticas' });
   }
 });
+
+// ==================== ROTAS ADMIN MASTER ====================
+const MASTER_PASSWORD = 'admin@2026volei';
+
+function verificarMasterAdmin(req, res, next) {
+  const auth = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (auth !== MASTER_PASSWORD) {
+    return res.status(403).json({ erro: 'Acesso negado' });
+  }
+  
+  next();
+}
+
+// Listar todos os tenants
+app.get('/api/admin/tenants', verificarMasterAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        t.id,
+        t.nome,
+        t.subdomain,
+        t.whatsapp_number,
+        t.status,
+        t.plano,
+        t.criado_em,
+        a.usuario as email
+      FROM tenants t
+      LEFT JOIN admins a ON a.tenant_id = t.id
+      ORDER BY t.criado_em DESC
+    `);
+    
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Erro ao listar tenants:', err);
+    res.status(500).json({ erro: 'Erro no servidor' });
+  }
+});
+
+// Buscar tenant específico
+app.get('/api/admin/tenants/:id', verificarMasterAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        t.*,
+        a.usuario as email
+      FROM tenants t
+      LEFT JOIN admins a ON a.tenant_id = t.id
+      WHERE t.id = $1
+    `, [req.params.id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ erro: 'Tenant não encontrado' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro no servidor' });
+  }
+});
+
+// Atualizar tenant
+app.put('/api/admin/tenants/:id', verificarMasterAdmin, async (req, res) => {
+  const { status, plano } = req.body;
+  
+  if (!status || !plano) {
+    return res.status(400).json({ erro: 'Status e plano são obrigatórios' });
+  }
+  
+  try {
+    await pool.query(`
+      UPDATE tenants 
+      SET status = $1, plano = $2
+      WHERE id = $3
+    `, [status, plano, req.params.id]);
+    
+    res.json({ sucesso: true, mensagem: 'Tenant atualizado' });
+  } catch (err) {
+    console.error('Erro ao atualizar tenant:', err);
+    res.status(500).json({ erro: 'Erro ao atualizar' });
+  }
+});
+
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);

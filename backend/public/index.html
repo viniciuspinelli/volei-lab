@@ -274,70 +274,94 @@
     let currentTenantId = null;
     let adminToken = null;
     let isAdmin = false;
+    let currentTenantId = null;
+    let whatsappNumber = null;  // ← ADICIONAR ESTA LINHA
+    let adminToken = null;
+    let isAdmin = false;
     
     // VERIFICAÇÃO DE TOKEN AO CARREGAR
-    async function verificarTokenInicial() {
-      const token = localStorage.getItem('adminToken');
-      
-      if (!token) {
-        window.location.href = '/login.html';
-        return false;
-      }
-      
-      try {
-        const response = await fetch('/verificar-token', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        const result = await response.json();
-        
-        if (!result.valido) {
-          localStorage.removeItem('adminToken');
-          localStorage.removeItem('lastTenantId');
-          window.location.href = '/login.html';
-          return false;
-        }
-        
-        const lastTenantId = localStorage.getItem('lastTenantId');
-        currentTenantId = result.tenant_id;
-        
-        if (lastTenantId && lastTenantId !== String(currentTenantId)) {
-          console.log('🔄 Tenant diferente detectado. Limpando cache...');
-          window.ultimoSorteio = null;
-          if (document.getElementById('resultadoSorteio')) {
-            document.getElementById('resultadoSorteio').innerHTML = '';
-          }
-        }
-        
-        localStorage.setItem('lastTenantId', currentTenantId || '');
-        
-        if (result.tenant_nome) {
-          const userInfoEl = document.getElementById('userInfo');
-          if (userInfoEl) {
-            userInfoEl.textContent = `📍 ${result.tenant_nome}`;
-          }
-        }
-        
-        return true;
-      } catch (err) {
-        console.error('Erro ao verificar token:', err);
-        localStorage.removeItem('adminToken');
-        localStorage.removeItem('lastTenantId');
-        window.location.href = '/login.html';
-        return false;
-      }
-    }
+// No início do script do index.html, adicione essa variável global
+let currentTenantId = null;
+let whatsappNumber = null;  // ← ADICIONAR ESTA LINHA
+let adminToken = null;
+let isAdmin = false;
 
-    function getToken() {
-      return localStorage.getItem('adminToken');
-    }
-
-    function handleUnauthorized() {
-      alert('Sessão expirada. Faça login novamente.');
+// Na função verificarTokenInicial, após obter o resultado:
+async function verificarTokenInicial() {
+  const token = localStorage.getItem('adminToken');
+  
+  if (!token) {
+    window.location.href = '/login.html';
+    return false;
+  }
+  
+  try {
+    const response = await fetch('/verificar-token', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    const result = await response.json();
+    
+    if (!result.valido) {
       localStorage.removeItem('adminToken');
       localStorage.removeItem('lastTenantId');
       window.location.href = '/login.html';
+      return false;
     }
+    
+    const lastTenantId = localStorage.getItem('lastTenantId');
+    currentTenantId = result.tenant_id;
+    whatsappNumber = result.whatsapp_number;  // ← ADICIONAR ESTA LINHA
+    
+    if (lastTenantId && lastTenantId !== String(currentTenantId)) {
+      console.log('🔄 Tenant diferente detectado. Limpando cache...');
+      window.ultimoSorteio = null;
+      if (document.getElementById('resultadoSorteio')) {
+        document.getElementById('resultadoSorteio').innerHTML = '';
+      }
+    }
+    
+    localStorage.setItem('lastTenantId', currentTenantId || '');
+    
+    if (result.tenant_nome) {
+      const userInfoEl = document.getElementById('userInfo');
+      if (userInfoEl) {
+        userInfoEl.textContent = `📍 ${result.tenant_nome}`;
+      }
+    }
+    
+    return true;
+  } catch (err) {
+    console.error('Erro ao verificar token:', err);
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('lastTenantId');
+    window.location.href = '/login.html';
+    return false;
+  }
+}
+
+// Substituir a função compartilharWhatsApp por:
+function compartilharWhatsApp() {
+  if (!window.ultimoSorteio) return;
+  
+  const numTimes = window.ultimoSorteio.length;
+  let mensagem = '🏐 *SORTEIO DOS TIMES - VÔLEI*\n\n';
+  
+  for (let i = 0; i < numTimes; i++) {
+    mensagem += `*Time ${i + 1}*\n`;
+    window.ultimoSorteio[i].forEach(p => {
+      if (p.nome !== 'Vaga Livre') {
+        mensagem += `${p.nome}${p.genero ? ' ' + (p.genero === 'masculino' ? '♂' : '♀') : ''}\n`;
+      }
+    });
+    mensagem += '\n';
+  }
+  
+  // Usar o número do WhatsApp do tenant ou um padrão
+  const numero = whatsappNumber || '5511999999999';
+  
+  window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
+}
 
     // NAVEGAÇÃO
     const navItems = document.querySelectorAll('[data-page]');

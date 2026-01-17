@@ -300,7 +300,7 @@ app.get('/verificar-token', async (req, res) => {
   
   try {
     const result = await pool.query(`
-      SELECT at.*, a.tenant_id, t.nome as tenant_nome, t.status
+      SELECT at.*, a.tenant_id, t.nome as tenant_nome, t.status, t.whatsapp_number
       FROM admin_tokens at
       INNER JOIN admins a ON at.admin_id = a.id
       LEFT JOIN tenants t ON a.tenant_id = t.id
@@ -317,7 +317,8 @@ app.get('/verificar-token', async (req, res) => {
       valido: true,
       tenant_id: data.tenant_id,
       tenant_nome: data.tenant_nome || 'Admin Principal',
-      status: data.status || 'active'
+      status: data.status || 'active',
+      whatsapp_number: data.whatsapp_number  // ← Já está aqui, mas confirme
     });
   } catch (err) {
     res.json({ valido: false });

@@ -154,7 +154,10 @@ async function verificarTenant(req, res, next) {
 app.post('/api/registro', async (req, res) => {
   const { nome_time, email, senha, nome_usuario, telefone, whatsapp } = req.body;
   
+  console.log('📝 Tentativa de registro:', { nome_time, email, nome_usuario });
+  
   if (!nome_time || !email || !senha || !nome_usuario) {
+    console.log('❌ Campos faltando');
     return res.status(400).json({ erro: 'Preencha todos os campos obrigatórios' });
   }
   
@@ -162,15 +165,19 @@ app.post('/api/registro', async (req, res) => {
     // Verificar se email já existe
     const emailExists = await pool.query('SELECT id FROM admins WHERE usuario = $1', [email]);
     if (emailExists.rows.length > 0) {
-      return res.status(400).json({ erro: 'Email já cadastrado' });
+      console.log('❌ Email já existe:', email);
+      return res.status(400).json({ erro: 'Email já cadastrado. Use outro email.' });
     }
     
-    // Criar subdomain a partir do nome do time
+    // Criar subdomain
     const subdomain = nome_time.toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove acentos
-      .replace(/[^a-z0-9]/g, '-') // Substitui caracteres especiais
-      .replace(/-+/g, '-') // Remove hífens duplicados
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '') // Remove hífens no início e fim
       .substring(0, 50);
+    
+    console.log('📌 Subdomain gerado:', subdomain);
     
     // Criar tenant
     const tenantResult = await pool.query(`
@@ -180,6 +187,7 @@ app.post('/api/registro', async (req, res) => {
     `, [nome_time, subdomain, whatsapp || telefone]);
     
     const tenantId = tenantResult.rows[0].id;
+    console.log('✅ Tenant criado:', tenantId);
     
     // Hash da senha
     const senhaHash = await bcrypt.hash(senha, 10);
@@ -190,22 +198,27 @@ app.post('/api/registro', async (req, res) => {
       VALUES ($1, $2, $3)
     `, [email, senhaHash, tenantId]);
     
-    // Criar usuário na tabela users também
+    console.log('✅ Admin criado');
+    
+    // Criar usuário
     await pool.query(`
       INSERT INTO users (tenant_id, email, senha_hash, nome, telefone, role)
       VALUES ($1, $2, $3, $4, $5, 'tenant_admin')
     `, [tenantId, email, senhaHash, nome_usuario, telefone]);
     
+    console.log('✅ User criado');
+    
     res.json({ 
       sucesso: true, 
-      mensagem: 'Cadastro realizado com sucesso! Faça login para começar.',
+      mensagem: 'Cadastro realizado com sucesso!',
       tenant_id: tenantId,
       subdomain: subdomain
     });
     
   } catch (err) {
-    console.error('Erro no registro:', err);
-    res.status(500).json({ erro: 'Erro ao criar conta. Tente novamente.' });
+    console.error('❌ Erro no registro:', err.message);
+    console.error('Stack:', err.stack);
+    res.status(500).json({ erro: `Erro ao criar conta: ${err.message}` });
   }
 });
 

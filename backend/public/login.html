@@ -91,6 +91,22 @@
         .btn-outline-secondary:hover {
             background: #f5f5f5;
         }
+        .btn-admin {
+            background: rgba(255, 107, 0, 0.1);
+            color: #ff6b00;
+            border: 2px solid rgba(255, 107, 0, 0.3);
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+        .btn-admin:hover {
+            background: rgba(255, 107, 0, 0.15);
+            border-color: rgba(255, 107, 0, 0.5);
+            transform: translateY(-2px);
+        }
         .text-center {
             text-align: center;
         }
@@ -112,6 +128,11 @@
             background: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
+        }
+        .divider {
+            margin: 1.5rem 0;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e0e0e0;
         }
     </style>
 </head>
@@ -148,6 +169,14 @@
                 <p class="text-muted" style="margin-bottom: 0.5rem;">Não tem conta?</p>
                 <a href="/registro" class="btn btn-outline-secondary" style="text-decoration: none; display: inline-block;">
                     Criar Conta Grátis
+                </a>
+            </div>
+            
+            <!-- Botão Admin Panel -->
+            <div class="divider">
+                <a href="/admin-panel.html" class="btn btn-admin">
+                    <span>🛡️</span>
+                    <span>Painel Administrativo</span>
                 </a>
             </div>
         </div>

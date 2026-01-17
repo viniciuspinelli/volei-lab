@@ -574,6 +574,124 @@ app.post('/admin/trocar-senha', verificarAdmin, async (req, res) => {
   }
 });
 
+// ROTA TEMPORÁRIA - MIGRAÇÃO (remover depois)
+app.get('/executar-migracao', async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    res.write('🔄 Iniciando migração multi-tenant...\n\n');
+    
+    // 1. Criar tabela de tenants
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tenants (
+        id SERIAL PRIMARY KEY,
+        nome VARCHAR(100) NOT NULL,
+        subdomain VARCHAR(50) UNIQUE,
+        whatsapp_number VARCHAR(20),
+        whatsapp_api_token VARCHAR(255),
+        status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'suspended', 'trial', 'canceled')),
+        plano VARCHAR(20) CHECK (plano IN ('mensal', 'trimestral', 'anual')),
+        data_inicio DATE DEFAULT CURRENT_DATE,
+        data_vencimento DATE,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    res.write('✅ Tabela tenants criada\n\n');
+    
+    // 2. Adicionar tenant_id aos admins
+    const checkAdminTenant = await client.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'admins' AND column_name = 'tenant_id'
+    `);
+    
+    if (checkAdminTenant.rows.length === 0) {
+      await client.query('ALTER TABLE admins ADD COLUMN tenant_id INTEGER REFERENCES tenants(id)');
+      res.write('✅ Campo tenant_id adicionado em admins\n\n');
+    } else {
+      res.write('ℹ️  Campo tenant_id já existe em admins\n\n');
+    }
+    
+    // 3. Adicionar tenant_id nas confirmações
+    const tables = ['confirmados_atual', 'historico_confirmacoes'];
+    
+    for (const table of tables) {
+      const checkColumn = await client.query(`
+        SELECT column_name FROM information_schema.columns 
+        WHERE table_name = $1 AND column_name = 'tenant_id'
+      `, [table]);
+      
+      if (checkColumn.rows.length === 0) {
+        await client.query(`ALTER TABLE ${table} ADD COLUMN tenant_id INTEGER REFERENCES tenants(id)`);
+        res.write(`✅ Campo tenant_id adicionado em ${table}\n\n`);
+      } else {
+        res.write(`ℹ️  Campo tenant_id já existe em ${table}\n\n`);
+      }
+    }
+    
+    // 4. Criar tenant padrão
+    const tenantCheck = await client.query('SELECT id FROM tenants WHERE subdomain = $1', ['principal']);
+    
+    let tenantId;
+    if (tenantCheck.rows.length === 0) {
+      const result = await client.query(`
+        INSERT INTO tenants (nome, subdomain, status, plano)
+        VALUES ('Time Principal', 'principal', 'active', 'mensal')
+        RETURNING id
+      `);
+      tenantId = result.rows[0].id;
+      res.write(`✅ Tenant padrão criado com ID: ${tenantId}\n\n`);
+    } else {
+      tenantId = tenantCheck.rows[0].id;
+      res.write(`ℹ️  Tenant padrão já existe com ID: ${tenantId}\n\n`);
+    }
+    
+    // 5. Atualizar dados existentes
+    await client.query(`UPDATE admins SET tenant_id = $1 WHERE tenant_id IS NULL`, [tenantId]);
+    await client.query(`UPDATE confirmados_atual SET tenant_id = $1 WHERE tenant_id IS NULL`, [tenantId]);
+    await client.query(`UPDATE historico_confirmacoes SET tenant_id = $1 WHERE tenant_id IS NULL`, [tenantId]);
+    res.write('✅ Dados existentes migrados para tenant padrão\n\n');
+    
+    // 6. Criar tabela de usuários
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        email VARCHAR(100) UNIQUE NOT NULL,
+        senha_hash VARCHAR(255) NOT NULL,
+        nome VARCHAR(100) NOT NULL,
+        telefone VARCHAR(20),
+        role VARCHAR(20) DEFAULT 'tenant_admin' CHECK (role IN ('super_admin', 'tenant_admin', 'member')),
+        ativo BOOLEAN DEFAULT true,
+        criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        ultimo_login TIMESTAMP
+      )
+    `);
+    res.write('✅ Tabela users criada\n\n');
+    
+    // 7. Criar índices
+    await client.query('CREATE INDEX IF NOT EXISTS idx_confirmados_atual_tenant ON confirmados_atual(tenant_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_historico_tenant ON historico_confirmacoes(tenant_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
+    res.write('✅ Índices criados\n\n');
+    
+    await client.query('COMMIT');
+    res.write('🎉 Migração concluída com sucesso!\n\n');
+    res.write('⚠️  IMPORTANTE: Remova esta rota /executar-migracao do código agora!\n');
+    res.end();
+    
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.write(`❌ Erro na migração: ${err.message}\n`);
+    res.end();
+  } finally {
+    client.release();
+  }
+});
+
+
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });

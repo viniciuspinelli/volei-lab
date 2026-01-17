@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Test API</title>
+  <style>
+    body {
+      background: #000;
+      color: #0f0;
+      font-family: monospace;
+      padding: 20px;
+    }
+    pre {
+      background: #111;
+      padding: 15px;
+      border: 1px solid #0f0;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Test API Endpoints</h1>
+  <button onclick="testar()">Testar Rota /api/admin/tenants</button>
+  <pre id="result"></pre>
+  
+  <script>
+    async function testar() {
+      const result = document.getElementById('result');
+      result.textContent = 'Testando...\n\n';
+      
+      try {
+        const response = await fetch('/api/admin/tenants', {
+          headers: {
+            'Authorization': 'Bearer admin@2026volei'
+          }
+        });
+        
+        result.textContent += `Status: ${response.status}\n`;
+        result.textContent += `Status Text: ${response.statusText}\n\n`;
+        
+        const text = await response.text();
+        result.textContent += `Response:\n${text}`;
+        
+        try {
+          const json = JSON.parse(text);
+          result.textContent += `\n\nJSON formatado:\n${JSON.stringify(json, null, 2)}`;
+        } catch (e) {
+          result.textContent += '\n\n(Resposta não é JSON válido)';
+        }
+      } catch (err) {
+        result.textContent = `Erro: ${err.message}`;
+      }
+    }
+  </script>
+</body>
+</html>

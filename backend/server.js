@@ -441,26 +441,41 @@ app.get('/api/admin/tenants/:id', verificarMasterAdmin, async (req, res) => {
 
 // Atualizar tenant
 app.put('/api/admin/tenants/:id', verificarMasterAdmin, async (req, res) => {
-  const { status, plano } = req.body;
-  
-  if (!status || !plano) {
-    return res.status(400).json({ erro: 'Status e plano são obrigatórios' });
-  }
+  const { nome, email, whatsapp, status, plano } = req.body;
+  const tenantId = req.params.id;
   
   try {
+    // Atualizar dados do tenant
     await pool.query(`
       UPDATE tenants 
-      SET status = $1, plano = $2
-      WHERE id = $3
-    `, [status, plano, req.params.id]);
+      SET nome = $1, 
+          whatsapp_number = $2, 
+          status = $3, 
+          plano = $4
+      WHERE id = $5
+    `, [nome, whatsapp, status, plano, tenantId]);
     
-    res.json({ sucesso: true, mensagem: 'Tenant atualizado' });
+    // Atualizar email do admin se fornecido
+    if (email) {
+      await pool.query(`
+        UPDATE admins 
+        SET usuario = $1 
+        WHERE tenant_id = $2
+      `, [email, tenantId]);
+    }
+    
+    res.json({ 
+      sucesso: true, 
+      mensagem: 'Time atualizado com sucesso!' 
+    });
   } catch (err) {
     console.error('Erro ao atualizar tenant:', err);
-    res.status(500).json({ erro: 'Erro ao atualizar' });
+    res.status(500).json({ 
+      erro: 'Erro ao atualizar', 
+      detalhes: err.message 
+    });
   }
 });
-
 // ==================== ROTA DE MIGRAÇÃO ====================
 app.post('/api/migrate', async (req, res) => {
   const logs = [];

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Gerar Ícones PWA</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #111; color: #fff; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; margin: 10px; }
+    #status { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>🏐 Gerador de Ícones PWA</h1>
+  <p>Clique no botão para gerar e baixar todos os ícones:</p>
+  <button onclick="gerarTodos()">🎨 Gerar Todos os Ícones</button>
+  <div id="status"></div>
+  
+  <script>
+    const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+    
+    function gerarIcone(size) {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      
+      // Gradiente laranja
+      const gradient = ctx.createLinearGradient(0, 0, size, size);
+      gradient.addColorStop(0, '#ff8533');
+      gradient.addColorStop(1, '#cc5500');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, size, size);
+      
+      // Borda arredondada
+      ctx.globalCompositeOperation = 'destination-in';
+      ctx.beginPath();
+      ctx.arc(size/2, size/2, size/2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      
+      // Emoji 🏐 (ajustado para diferentes tamanhos)
+      ctx.font = `${size * 0.5}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🏐', size/2, size/2);
+      
+      return canvas;
+    }
+    
+    async function gerarTodos() {
+      const status = document.getElementById('status');
+      status.innerHTML = '<p>⏳ Gerando ícones...</p>';
+      
+      for (const size of sizes) {
+        const canvas = gerarIcone(size);
+        
+        canvas.toBlob(blob => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `icon-${size}x${size}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }, 'image/png');
+        
+        await new Promise(r => setTimeout(r, 300));
+      }
+      
+      status.innerHTML = `
+        <p style="color: #34d399;">✅ ${sizes.length} ícones gerados!</p>
+        <p>📁 Coloque-os na pasta <strong>public/icons/</strong></p>
+        <p>⚠️ Certifique-se de que a pasta "icons" existe antes de enviar os arquivos.</p>
+      `;
+    }
+  </script>
+</body>
+</html>

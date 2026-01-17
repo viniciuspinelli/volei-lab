@@ -777,6 +777,71 @@ app.get('/estatisticas', verificarTenant, async (req, res) => {
     res.status(500).json({ erro: 'Erro ao buscar estatísticas' });
   }
 });
+// ROTA TEMPORÁRIA - Corrigir tabela users
+app.get('/corrigir-users', async (req, res) => {
+  const client = await pool.connect();
+  
+  try {
+    res.write('🔄 Verificando estrutura da tabela users...\n\n');
+    
+    // Ver estrutura atual
+    const columns = await client.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'users'
+      ORDER BY ordinal_position
+    `);
+    
+    res.write('📋 Colunas atuais:\n');
+    columns.rows.forEach(col => {
+      res.write(`  - ${col.column_name} (${col.data_type})\n`);
+    });
+    res.write('\n');
+    
+    // Verificar se senha_hash existe
+    const hasSenhaHash = columns.rows.some(col => col.column_name === 'senha_hash');
+    
+    if (!hasSenhaHash) {
+      res.write('❌ Coluna senha_hash não existe. Recriando tabela...\n\n');
+      
+      // Dropar e recriar
+      await client.query('DROP TABLE IF EXISTS users CASCADE');
+      res.write('✅ Tabela antiga removida\n');
+      
+      await client.query(`
+        CREATE TABLE users (
+          id SERIAL PRIMARY KEY,
+          tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+          email VARCHAR(100) UNIQUE NOT NULL,
+          senha_hash VARCHAR(255) NOT NULL,
+          nome VARCHAR(100) NOT NULL,
+          telefone VARCHAR(20),
+          role VARCHAR(20) DEFAULT 'tenant_admin' CHECK (role IN ('super_admin', 'tenant_admin', 'member')),
+          ativo BOOLEAN DEFAULT true,
+          criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          ultimo_login TIMESTAMP
+        )
+      `);
+      res.write('✅ Tabela users recriada corretamente\n');
+      
+      await client.query('CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id)');
+      await client.query('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)');
+      res.write('✅ Índices criados\n\n');
+      
+    } else {
+      res.write('✅ Tabela users já está correta!\n\n');
+    }
+    
+    res.write('🎉 Correção concluída! Pode remover esta rota agora.\n');
+    res.end();
+    
+  } catch (err) {
+    res.write(`❌ Erro: ${err.message}\n`);
+    res.end();
+  } finally {
+    client.release();
+  }
+});
 
 
 app.listen(PORT, () => {

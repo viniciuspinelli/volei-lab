@@ -105,6 +105,7 @@ async function initDB() {
 initDB();
 
 // MIDDLEWARE: Extrair tenant do token
+// MIDDLEWARE: Verificar token E tenant
 async function verificarTenant(req, res, next) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   
@@ -114,10 +115,11 @@ async function verificarTenant(req, res, next) {
   
   try {
     const result = await pool.query(`
-      SELECT at.admin_id, a.tenant_id, t.status, t.nome as tenant_nome
+      SELECT at.admin_id, a.tenant_id, a.usuario,
+             t.status, t.nome as tenant_nome, t.whatsapp_number
       FROM admin_tokens at
       INNER JOIN admins a ON at.admin_id = a.id
-      INNER JOIN tenants t ON a.tenant_id = t.id
+      LEFT JOIN tenants t ON a.tenant_id = t.id
       WHERE at.token = $1 AND at.expira_em > NOW()
     `, [token]);
     
@@ -127,6 +129,11 @@ async function verificarTenant(req, res, next) {
     
     const data = result.rows[0];
     
+    // Se não tem tenant, é admin antigo (migrado)
+    if (!data.tenant_id) {
+      return res.status(403).json({ erro: 'Usuário precisa ser associado a um time' });
+    }
+    
     if (data.status !== 'active') {
       return res.status(403).json({ erro: 'Assinatura inativa. Entre em contato.' });
     }
@@ -134,6 +141,7 @@ async function verificarTenant(req, res, next) {
     req.adminId = data.admin_id;
     req.tenantId = data.tenant_id;
     req.tenantNome = data.tenant_nome;
+    req.whatsappNumber = data.whatsapp_number;
     
     next();
   } catch (err) {
@@ -141,6 +149,66 @@ async function verificarTenant(req, res, next) {
     return res.status(500).json({ erro: 'Erro ao verificar token' });
   }
 }
+
+// REGISTRAR NOVO TENANT
+app.post('/api/registro', async (req, res) => {
+  const { nome_time, email, senha, nome_usuario, telefone, whatsapp } = req.body;
+  
+  if (!nome_time || !email || !senha || !nome_usuario) {
+    return res.status(400).json({ erro: 'Preencha todos os campos obrigatórios' });
+  }
+  
+  try {
+    // Verificar se email já existe
+    const emailExists = await pool.query('SELECT id FROM admins WHERE usuario = $1', [email]);
+    if (emailExists.rows.length > 0) {
+      return res.status(400).json({ erro: 'Email já cadastrado' });
+    }
+    
+    // Criar subdomain a partir do nome do time
+    const subdomain = nome_time.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove acentos
+      .replace(/[^a-z0-9]/g, '-') // Substitui caracteres especiais
+      .replace(/-+/g, '-') // Remove hífens duplicados
+      .substring(0, 50);
+    
+    // Criar tenant
+    const tenantResult = await pool.query(`
+      INSERT INTO tenants (nome, subdomain, whatsapp_number, status, plano)
+      VALUES ($1, $2, $3, 'trial', 'mensal')
+      RETURNING id
+    `, [nome_time, subdomain, whatsapp || telefone]);
+    
+    const tenantId = tenantResult.rows[0].id;
+    
+    // Hash da senha
+    const senhaHash = await bcrypt.hash(senha, 10);
+    
+    // Criar admin
+    await pool.query(`
+      INSERT INTO admins (usuario, senha_hash, tenant_id)
+      VALUES ($1, $2, $3)
+    `, [email, senhaHash, tenantId]);
+    
+    // Criar usuário na tabela users também
+    await pool.query(`
+      INSERT INTO users (tenant_id, email, senha_hash, nome, telefone, role)
+      VALUES ($1, $2, $3, $4, $5, 'tenant_admin')
+    `, [tenantId, email, senhaHash, nome_usuario, telefone]);
+    
+    res.json({ 
+      sucesso: true, 
+      mensagem: 'Cadastro realizado com sucesso! Faça login para começar.',
+      tenant_id: tenantId,
+      subdomain: subdomain
+    });
+    
+  } catch (err) {
+    console.error('Erro no registro:', err);
+    res.status(500).json({ erro: 'Erro ao criar conta. Tente novamente.' });
+  }
+});
+
 
 // REGISTRAR NOVO TENANT (público)
 app.post('/registro', async (req, res) => {
@@ -549,28 +617,151 @@ app.delete('/estatisticas/pessoa/:nome', verificarAdmin, async (req, res) => {
 });
 
 // TROCAR SENHA DO ADMIN
-app.post('/admin/trocar-senha', verificarAdmin, async (req, res) => {
-  const { senha_antiga, senha_nova } = req.body;
+// CONFIRMAR PRESENÇA (usar verificarTenant ao invés de sem proteção)
+app.post('/confirmar', verificarTenant, async (req, res) => {
+  const { nome, tipo, genero } = req.body;
+  const tenantId = req.tenantId; // Pega do middleware
+  
+  if (!nome || !tipo || !genero) {
+    return res.status(400).json({ erro: 'Nome, tipo e gênero são obrigatórios' });
+  }
   
   try {
-    const admin = await pool.query('SELECT * FROM admins WHERE id = $1', [req.adminId]);
+    // Verifica se já tem 24 confirmados DO TENANT
+    const countResult = await pool.query(
+      'SELECT COUNT(*) as total FROM confirmados_atual WHERE tenant_id = $1',
+      [tenantId]
+    );
+    const total = parseInt(countResult.rows[0].total);
     
-    if (admin.rows.length === 0) {
-      return res.status(404).json({ erro: 'Admin não encontrado' });
+    if (total >= 24) {
+      return res.status(400).json({ erro: 'Limite de 24 confirmados atingido!' });
     }
     
-    const senhaValida = await bcrypt.compare(senha_antiga, admin.rows[0].senha_hash);
-    if (!senhaValida) {
-      return res.status(401).json({ erro: 'Senha antiga incorreta' });
-    }
+    // Salvar na lista atual (temporária) COM tenant_id
+    const resultAtual = await pool.query(
+      'INSERT INTO confirmados_atual (nome, tipo, genero, tenant_id) VALUES ($1, $2, $3, $4) RETURNING *',
+      [nome, tipo, genero, tenantId]
+    );
     
-    const novaSenhaHash = await bcrypt.hash(senha_nova, 10);
-    await pool.query('UPDATE admins SET senha_hash = $1 WHERE id = $2', [novaSenhaHash, req.adminId]);
+    // Salvar no histórico (permanente) COM tenant_id
+    await pool.query(
+      'INSERT INTO historico_confirmacoes (nome, tipo, genero, tenant_id) VALUES ($1, $2, $3, $4)',
+      [nome, tipo, genero, tenantId]
+    );
     
-    res.json({ sucesso: true, mensagem: 'Senha alterada com sucesso!' });
+    res.json({ sucesso: true, confirmado: resultAtual.rows[0] });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ erro: 'Erro ao trocar senha' });
+    console.error('Erro ao confirmar:', err);
+    res.status(500).json({ erro: 'Erro ao confirmar presença' });
+  }
+});
+
+// LISTAR CONFIRMADOS ATUAIS (filtrado por tenant)
+app.get('/confirmados', verificarTenant, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM confirmados_atual WHERE tenant_id = $1 ORDER BY data_confirmacao ASC LIMIT 24',
+      [req.tenantId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Erro ao listar:', err);
+    res.status(500).json({ erro: 'Erro ao listar confirmados' });
+  }
+});
+
+// REMOVER CONFIRMADO (filtrado por tenant)
+app.delete('/confirmados/:id', verificarTenant, async (req, res) => {
+  const { id } = req.params;
+  try {
+    await pool.query(
+      'DELETE FROM confirmados_atual WHERE id = $1 AND tenant_id = $2',
+      [id, req.tenantId]
+    );
+    res.json({ sucesso: true });
+  } catch (err) {
+    console.error('Erro ao remover:', err);
+    res.status(500).json({ erro: 'Erro ao remover' });
+  }
+});
+
+// LIMPAR LISTA (filtrado por tenant)
+app.delete('/confirmados', verificarTenant, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM confirmados_atual WHERE tenant_id = $1', [req.tenantId]);
+    res.json({ sucesso: true });
+  } catch (err) {
+    console.error('Erro ao limpar:', err);
+    res.status(500).json({ erro: 'Erro ao limpar lista' });
+  }
+});
+
+// ESTATÍSTICAS (filtrado por tenant)
+app.get('/estatisticas', verificarTenant, async (req, res) => {
+  try {
+    const ranking = await pool.query(`
+      SELECT
+        nome, tipo, genero,
+        COUNT(*) as total_confirmacoes,
+        MAX(data_confirmacao) as ultima_confirmacao
+      FROM historico_confirmacoes
+      WHERE tenant_id = $1
+      GROUP BY nome, tipo, genero
+      ORDER BY total_confirmacoes DESC, nome ASC
+    `, [req.tenantId]);
+    
+    const totalConfirmacoes = await pool.query(
+      'SELECT COUNT(*) as total FROM historico_confirmacoes WHERE tenant_id = $1',
+      [req.tenantId]
+    );
+    
+    const pessoasUnicas = await pool.query(
+      'SELECT COUNT(DISTINCT nome) as total FROM historico_confirmacoes WHERE tenant_id = $1',
+      [req.tenantId]
+    );
+    
+    const total = parseInt(totalConfirmacoes.rows[0].total) || 0;
+    const pessoas = parseInt(pessoasUnicas.rows[0].total) || 1;
+    const media = pessoas > 0 ? (total / pessoas).toFixed(1) : 0;
+    
+    const porGenero = await pool.query(`
+      SELECT genero, COUNT(*) as total, COUNT(DISTINCT nome) as pessoas
+      FROM historico_confirmacoes
+      WHERE tenant_id = $1
+      GROUP BY genero
+    `, [req.tenantId]);
+    
+    const generoObj = {};
+    porGenero.rows.forEach(row => {
+      generoObj[row.genero] = {
+        total: parseInt(row.total),
+        pessoas: parseInt(row.pessoas)
+      };
+    });
+    
+    const rankingFormatado = ranking.rows.map(row => ({
+      nome: row.nome,
+      tipo: row.tipo,
+      genero: row.genero,
+      totalconfirmacoes: parseInt(row.total_confirmacoes) || 0,
+      total_confirmacoes: parseInt(row.total_confirmacoes) || 0,
+      ultimaconfirmacao: row.ultima_confirmacao,
+      ultima_confirmacao: row.ultima_confirmacao
+    }));
+    
+    res.json({
+      ranking: rankingFormatado,
+      resumo: {
+        totalConfirmacoes: total,
+        pessoasUnicas: pessoas,
+        mediaConfirmacoes: media
+      },
+      porGenero: generoObj
+    });
+  } catch (err) {
+    console.error('Erro nas estatísticas:', err);
+    res.status(500).json({ erro: 'Erro ao buscar estatísticas' });
   }
 });
 

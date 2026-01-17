@@ -88,18 +88,50 @@ async function initDB() {
 
 initDB();
 
-// ==================== MIDDLEWARE: EXTRAIR TENANT_ID DA SESSÃO ====================
-// Para desenvolvimento, usar tenant_id = 1 por padrão
-// Em produção, isso viria do subdomain ou autenticação
-function extrairTenantId(req, res, next) {
-  // Para rotas admin, não precisa de tenant_id
-  if (req.path.startsWith('/api/admin') || req.path === '/admin-panel.html') {
+// ==================== MIDDLEWARE: EXTRAIR TENANT_ID ====================
+async function extrairTenantId(req, res, next) {
+  // Rotas que não precisam de tenant_id
+  if (req.path.startsWith('/api/admin') || 
+      req.path === '/admin-panel.html' ||
+      req.path === '/login' ||
+      req.path === '/logout' ||
+      req.path === '/verificar-token') {
     return next();
   }
   
-  // Por enquanto, usar tenant_id = 1 fixo (para desenvolvimento)
-  // Futuramente: extrair do subdomain ou da sessão
+  // 1. Tentar pegar tenant_id do token de autenticação
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  
+  if (token) {
+    try {
+      const result = await pool.query(`
+        SELECT a.tenant_id 
+        FROM admin_tokens t 
+        JOIN admins a ON a.id = t.admin_id 
+        WHERE t.token = $1 AND t.expira_em > NOW()
+      `, [token]);
+      
+      if (result.rows.length > 0) {
+        req.tenantId = result.rows[0].tenant_id;
+        console.log('✅ Tenant extraído do token:', req.tenantId);
+        return next();
+      }
+    } catch (err) {
+      console.error('Erro ao buscar tenant do token:', err);
+    }
+  }
+  
+  // 2. Fallback: query parameter ?tenant=X (para testes sem login)
+  const tenantQuery = req.query.tenant;
+  if (tenantQuery) {
+    req.tenantId = parseInt(tenantQuery);
+    console.log('⚠️ Tenant extraído da query:', req.tenantId);
+    return next();
+  }
+  
+  // 3. Padrão: tenant_id = 1 (compatibilidade)
   req.tenantId = 1;
+  console.log('⚠️ Usando tenant padrão: 1');
   next();
 }
 
@@ -113,7 +145,7 @@ async function verificarStatusTenant(req, res, next) {
     return next();
   }
   
-  // Se não tem tenant_id, deixar passar (será tratado depois)
+  // Se não tem tenant_id, deixar passar
   if (!req.tenantId) {
     return next();
   }
@@ -440,6 +472,10 @@ app.post('/confirmar', async (req, res) => {
   const { nome, tipo, genero } = req.body;
   const tenantId = req.tenantId || 1;
   
+  console.log('=== POST /confirmar ===');
+  console.log('Tenant ID:', tenantId);
+  console.log('Nome:', nome);
+  
   if (!nome || !tipo || !genero) {
     return res.status(400).json({ erro: 'Nome, tipo e gênero são obrigatórios' });
   }
@@ -468,6 +504,7 @@ app.post('/confirmar', async (req, res) => {
       [tenantId, nome, tipo, genero]
     );
     
+    console.log('✅ Confirmado salvo com tenant_id:', tenantId);
     res.json({ sucesso: true, confirmado: resultAtual.rows[0] });
   } catch (err) {
     console.error('Erro ao confirmar:', err);
@@ -479,11 +516,16 @@ app.post('/confirmar', async (req, res) => {
 app.get('/confirmados', async (req, res) => {
   const tenantId = req.tenantId || 1;
   
+  console.log('=== GET /confirmados ===');
+  console.log('Tenant ID:', tenantId);
+  
   try {
     const result = await pool.query(
       'SELECT * FROM confirmados_atual WHERE tenant_id = $1 ORDER BY data_confirmacao ASC LIMIT 24',
       [tenantId]
     );
+    
+    console.log('✅ Registros retornados:', result.rows.length);
     res.json(result.rows);
   } catch (err) {
     console.error('Erro ao listar:', err);
@@ -678,7 +720,11 @@ app.delete('/estatisticas/pessoa/:nome', verificarAdmin, async (req, res) => {
 app.post('/login', async (req, res) => {
   const { usuario, senha } = req.body;
   try {
-    const result = await pool.query('SELECT * FROM admins WHERE usuario = $1', [usuario]);
+    const result = await pool.query(
+      'SELECT a.*, a.tenant_id FROM admins a WHERE usuario = $1',
+      [usuario]
+    );
+    
     if (result.rows.length === 0) {
       return res.status(401).json({ sucesso: false, erro: 'Usuário não encontrado' });
     }
@@ -696,7 +742,13 @@ app.post('/login', async (req, res) => {
       [token, admin.id, expiraEm]
     );
     
-    res.json({ sucesso: true, token });
+    console.log('✅ Login realizado - Tenant ID:', admin.tenant_id);
+    
+    res.json({ 
+      sucesso: true, 
+      token,
+      tenant_id: admin.tenant_id
+    });
   } catch (err) {
     console.error('Erro no login:', err);
     res.status(500).json({ sucesso: false, erro: 'Erro no servidor' });
@@ -753,7 +805,6 @@ app.get('/api/debug/tenant-check', async (req, res) => {
     res.status(500).json({ erro: err.message });
   }
 });
-
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);

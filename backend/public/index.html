@@ -146,6 +146,18 @@
       .times-grid { grid-template-columns: 1fr; }
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
     }
+    .times-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+}
+
+@media (max-width: 768px) {
+  .times-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
   </style>
 </head>
 <body>
@@ -456,23 +468,29 @@ function sortearTimes(confirmados) {
   shuffle(homens);
   shuffle(mulheres);
   
-  // Criar 4 times vazios
-  const times = [[], [], [], []];
+  // DEFINIR NÚMERO DE TIMES (3 ou 4)
+  const totalPessoas = confirmados.length;
+  const numTimes = totalPessoas <= 18 ? 3 : 4;
+  
+  // Criar times vazios
+  const times = [];
+  for (let i = 0; i < numTimes; i++) {
+    times.push([]);
+  }
   
   // DISTRIBUIR MULHERES DE FORMA EQUILIBRADA (round-robin)
   mulheres.forEach((mulher, index) => {
-    times[index % 4].push(mulher);
+    times[index % numTimes].push(mulher);
   });
   
   // DISTRIBUIR HOMENS DE FORMA EQUILIBRADA (round-robin)
   homens.forEach((homem, index) => {
-    times[index % 4].push(homem);
+    times[index % numTimes].push(homem);
   });
   
-  // Preencher com "Vaga Livre" para igualar tamanhos
-  const maxSize = Math.max(...times.map(t => t.length));
-  for (let i = 0; i < 4; i++) {
-    while (times[i].length < maxSize) {
+  // PREENCHER COM VAGAS LIVRES ATÉ 6 PESSOAS POR TIME
+  for (let i = 0; i < numTimes; i++) {
+    while (times[i].length < 6) {
       times[i].push({nome: 'Vaga Livre', genero: '', tipo: ''});
     }
   }
@@ -481,36 +499,53 @@ function sortearTimes(confirmados) {
 }
     
     // RENDER TIMES COM DRAG AND DROP PARA ADMIN
-    function renderizarTimes() {
-      if (!window.ultimoSorteio) return;
-      const times = window.ultimoSorteio;
-      const canDrag = isAdmin;
+function renderizarTimes() {
+  if (!window.ultimoSorteio) return;
+  
+  const times = window.ultimoSorteio;
+  const numTimes = times.length;  // Pode ser 3 ou 4
+  const canDrag = isAdmin;
+  
+  let html = '<div class="card">';
+  html += '<h3 class="card-title">Times Sorteados</h3>';
+  
+  if (canDrag) {
+    html += '<div class="admin-hint">💡 Arraste os jogadores para trocar de time</div>';
+  }
+  
+  html += '<div class="times-grid">';
+  
+  // LOOP DINÂMICO (3 ou 4 times)
+  for (let i = 0; i < numTimes; i++) {
+    html += `<div class="time-card" data-time="${i}">`;
+    html += `<h4>Time ${i + 1}</h4>`;
+    html += `<ul ${canDrag ? 'class="drag-target"' : ''} data-time="${i}">`;
+    
+    times[i].forEach((p, j) => {
+      const badge = p.genero ? `<span class="badge badge-${p.genero}">${p.genero === 'masculino' ? '♂' : '♀'}</span>` : '';
       
-      let html = '<div class="card"><h3 class="card-title">Times Sorteados</h3>';
-      if (canDrag) {
-        html += '<div class="admin-hint">👆 Arraste os jogadores para trocar de time</div>';
+      if (canDrag && p.nome !== 'Vaga Livre') {
+        html += `<li class="draggable" draggable="true" data-time="${i}" data-index="${j}">${p.nome} ${badge}</li>`;
+      } else {
+        html += `<li>${p.nome} ${badge}</li>`;
       }
-      html += '<div class="times-grid">';
-      
-      for (let i = 0; i < 4; i++) {
-        html += `<div class="time-card" data-time="${i}"><h4>Time ${i + 1}</h4><ul class="${canDrag ? 'drag-target' : ''}" data-time="${i}">`;
-        times[i].forEach((p, j) => {
-          const badge = p.genero ? `<span class="badge badge-${p.genero}">${p.genero === 'masculino' ? '♂' : '♀'}</span>` : '';
-          if (canDrag && p.nome !== 'Vaga Livre') {
-            html += `<li class="draggable" draggable="true" data-time="${i}" data-index="${j}">${p.nome}${badge}</li>`;
-          } else {
-            html += `<li>${p.nome}${badge}</li>`;
-          }
-        });
-        html += '</ul></div>';
-      }
-      html += '</div>';
-      html += '<button class="btn btn-whatsapp btn-block" style="margin-top:16px;" onclick="compartilharWhatsApp()">📱 Compartilhar no WhatsApp</button>';
-      html += '</div>';
-      document.getElementById('resultadoSorteio').innerHTML = html;
-      
-      if (canDrag) initDragAndDrop();
-    }
+    });
+    
+    html += '</ul>';
+    html += '</div>';
+  }
+  
+  html += '</div>';
+  html += '<button class="btn btn-whatsapp btn-block" style="margin-top:16px" onclick="compartilharWhatsApp()">📱 Compartilhar no WhatsApp</button>';
+  html += '</div>';
+  
+  document.getElementById('resultadoSorteio').innerHTML = html;
+  
+  if (canDrag) {
+    initDragAndDrop();
+  }
+}
+
     
     // DRAG AND DROP PARA ADMIN
     function initDragAndDrop() {
@@ -584,18 +619,24 @@ function sortearTimes(confirmados) {
     });
     
     // WHATSAPP
-    function compartilharWhatsApp() {
-      if (!window.ultimoSorteio) return;
-      let mensagem = '*🏐 SORTEIO DOS TIMES - VÔLEI SEXTA 🏐*%0A%0A';
-      for (let i = 0; i < 4; i++) {
-        mensagem += `*Time ${i + 1}*%0A`;
-        window.ultimoSorteio[i].forEach(p => {
-          mensagem += `• ${p.nome}${p.genero ? ' (' + p.genero + ')' : ''}%0A`;
-        });
-        mensagem += '%0A';
+function compartilharWhatsApp() {
+  if (!window.ultimoSorteio) return;
+  
+  const numTimes = window.ultimoSorteio.length;
+  let mensagem = '🏐 *SORTEIO DOS TIMES - VÔLEI SEXTA*\n\n';
+  
+  for (let i = 0; i < numTimes; i++) {
+    mensagem += `*Time ${i + 1}*\n`;
+    window.ultimoSorteio[i].forEach(p => {
+      if (p.nome !== 'Vaga Livre') {
+        mensagem += `${p.nome}${p.genero ? ' ' + (p.genero === 'masculino' ? '♂' : '♀') : ''}\n`;
       }
-      window.open(`https://wa.me/5511986439388?text=${mensagem}`, '_blank');
-    }
+    });
+    mensagem += '\n';
+  }
+  
+  window.open(`https://wa.me/5511986439388?text=${encodeURIComponent(mensagem)}`, '_blank');
+}
     
     // LIMPAR LISTA
     document.getElementById('limparConfirmados').addEventListener('click', async function(e) {

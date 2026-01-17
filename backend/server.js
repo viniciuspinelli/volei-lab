@@ -463,17 +463,34 @@ app.put('/api/admin/tenants/:id', verificarMasterAdmin, async (req, res) => {
     
     console.log('Tenant atualizado:', tenantResult.rows[0]);
     
-    // 2. Atualizar email do admin se fornecido
+    // 2. Atualizar email do admin apenas se mudou
     if (email) {
-      console.log('Atualizando email do admin para:', email);
-      const adminResult = await pool.query(`
-        UPDATE admins 
-        SET usuario = $1 
-        WHERE tenant_id = $2
-        RETURNING *
-      `, [email, tenantId]);
+      console.log('Verificando se email mudou...');
       
-      console.log('Admin atualizado:', adminResult.rows[0]);
+      // Buscar email atual do admin
+      const adminAtual = await pool.query(`
+        SELECT usuario 
+        FROM admins 
+        WHERE tenant_id = $1
+      `, [tenantId]);
+      
+      const emailAtual = adminAtual.rows[0]?.usuario;
+      console.log('Email atual:', emailAtual, '| Email novo:', email);
+      
+      // Só atualizar se for diferente
+      if (emailAtual !== email) {
+        console.log('Email mudou, atualizando...');
+        const adminResult = await pool.query(`
+          UPDATE admins 
+          SET usuario = $1 
+          WHERE tenant_id = $2
+          RETURNING *
+        `, [email, tenantId]);
+        
+        console.log('Admin atualizado:', adminResult.rows[0]);
+      } else {
+        console.log('Email não mudou, mantendo o atual');
+      }
     }
     
     console.log('✅ Atualização concluída com sucesso!');

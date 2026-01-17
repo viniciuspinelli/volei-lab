@@ -41,7 +41,7 @@
     .nav-item.active { background: rgba(255, 107, 0, 0.15); color: var(--accent); border-left: 3px solid var(--accent); }
     .sidebar-admin { border-top: 1px solid rgba(255,255,255,0.05); padding-top: var(--spacing-md); margin-top: auto; }
     .nav-item.admin-logged { color: var(--accent); }
-    
+  
     .main-content { flex: 1; margin-left: var(--sidebar-width); padding: var(--spacing-xl); min-height: 100vh; }
     .page { display: none; max-width: 800px; margin: 0 auto; }
     .page.active { display: block; }
@@ -84,7 +84,7 @@
     .btn-remove:hover { background: rgba(239,68,68,0.25); }
     
     /* TIMES */
-    .times-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--spacing-md); }
+    .times-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--spacing-md); }
     .time-card { background: rgba(255,255,255,0.02); border-radius: var(--radius-md); padding: var(--spacing-md); border: 1px solid rgba(255,255,255,0.05); }
     .time-card h4 { color: var(--accent); font-size: 15px; margin-bottom: var(--spacing-sm); padding-bottom: var(--spacing-sm); border-bottom: 1px solid rgba(255,255,255,0.05); }
     .time-card ul { list-style: none; }
@@ -146,18 +146,6 @@
       .times-grid { grid-template-columns: 1fr; }
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
     }
-    .times-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: var(--spacing-md);
-}
-
-@media (max-width: 768px) {
-  .times-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
   </style>
 </head>
 <body>
@@ -329,18 +317,48 @@
   </div>
 
   <script>
-    // NAVEGAÇÃO
+    // ==================== VERIFICAÇÃO DE TOKEN ====================
+    function verificarTokenInicial() {
+      const token = localStorage.getItem('adminToken');
+      if (!token) {
+        window.location.href = '/login.html';
+        return false;
+      }
+      return true;
+    }
+
+    // Verificar ao carregar
+    if (!verificarTokenInicial()) {
+      // Se não tem token, para execução
+      throw new Error('Token não encontrado');
+    }
+
+    // Função para obter token
+    function getToken() {
+      return localStorage.getItem('adminToken');
+    }
+
+    // Função para tratar erro 401
+    function handleUnauthorized() {
+      alert('Sessão expirada. Faça login novamente.');
+      localStorage.removeItem('adminToken');
+      window.location.href = '/login.html';
+    }
+
+    // ==================== NAVEGAÇÃO ====================
     const navItems = document.querySelectorAll('[data-page]');
     const pages = document.querySelectorAll('.page');
+    
     function navigateTo(pageId) {
       pages.forEach(p => p.classList.remove('active'));
       document.getElementById(`page-${pageId}`).classList.add('active');
       navItems.forEach(item => item.classList.toggle('active', item.dataset.page === pageId));
       if (pageId === 'estatisticas') carregarEstatisticas();
     }
+    
     navItems.forEach(item => item.addEventListener('click', () => navigateTo(item.dataset.page)));
     
-    // MENSAGEM
+    // ==================== MENSAGEM ====================
     function mostrarMensagem(texto, tipo = '') {
       const el = document.getElementById('mensagem');
       el.textContent = texto;
@@ -348,61 +366,76 @@
       setTimeout(() => { el.textContent = ''; el.className = 'mensagem'; }, 3000);
     }
     
-    // ATUALIZAR LISTA (CAP 24)
+    // ==================== ATUALIZAR LISTA ====================
     async function atualizarLista() {
       try {
-        const res = await fetch('/confirmados');
-        const data = await res.json();
-        let confirmed = Array.isArray(data) ? data.slice(0, 24) : (data.confirmed || []).slice(0, 24);
+        const token = getToken();
         
-        const contador = document.getElementById('contadorConfirmados');
-        if (contador) contador.textContent = confirmed.length;
+        const response = await fetch('/confirmados', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         
-        const ul = document.getElementById('listaConfirmados');
-        if (ul) {
-          ul.innerHTML = '';
-          confirmed.forEach((c, i) => {
-            const li = document.createElement('li');
-            li.className = `lista-item ${c.tipo === 'avulso' ? 'avulso' : ''}`;
-            const info = document.createElement('div');
-            info.className = 'info';
-            const nome = document.createElement('span');
-            nome.className = 'nome';
-            nome.textContent = `${i + 1}. ${c.nome}`;
-            info.appendChild(nome);
-            const tipoBadge = document.createElement('span');
-            tipoBadge.className = `badge badge-${c.tipo}`;
-            tipoBadge.textContent = c.tipo === 'mensalista' ? 'M' : 'A';
-            tipoBadge.title = c.tipo;
-            info.appendChild(tipoBadge);
-            if (c.genero) {
-              const generoBadge = document.createElement('span');
-              generoBadge.className = `badge badge-${c.genero}`;
-              generoBadge.textContent = c.genero === 'masculino' ? '♂' : '♀';
-              generoBadge.title = c.genero;
-              info.appendChild(generoBadge);
-            }
-            li.appendChild(info);
-            const btn = document.createElement('button');
-            btn.className = 'btn-remove';
-            btn.textContent = '✕';
-            btn.title = `Remover ${c.nome}`;
-            btn.addEventListener('click', () => removerConfirmado(c.id));
-            li.appendChild(btn);
-            ul.appendChild(li);
-          });
+        if (response.status === 401) {
+          handleUnauthorized();
+          return;
         }
-      } catch (err) {
-        console.error('Erro lista:', err);
+        
+        const confirmados = await response.json();
+        const lista = document.getElementById('listaConfirmados');
+        const contador = document.getElementById('contadorConfirmados');
+        
+        contador.textContent = confirmados.length;
+        lista.innerHTML = '';
+        
+        if (confirmados.length === 0) {
+          lista.innerHTML = '<li class="empty-state">Nenhuma confirmação ainda.</li>';
+          return;
+        }
+        
+        confirmados.forEach(c => {
+          const li = document.createElement('li');
+          li.className = `lista-item ${c.tipo === 'avulso' ? 'avulso' : ''}`;
+          
+          li.innerHTML = `
+            <div class="info">
+              <span class="nome">${c.nome}</span>
+              <span class="badge badge-${c.tipo}">${c.tipo}</span>
+              <span class="badge badge-${c.genero}">${c.genero === 'masculino' ? '♂' : '♀'}</span>
+            </div>
+            <button class="btn-remove" onclick="removerConfirmado(${c.id})">✕</button>
+          `;
+          
+          lista.appendChild(li);
+        });
+      } catch (error) {
+        console.error('Erro ao carregar lista:', error);
+        mostrarMensagem('Erro ao carregar lista', 'erro');
       }
     }
     
-    // REMOVER CONFIRMADO
+    // ==================== REMOVER CONFIRMADO ====================
     async function removerConfirmado(id) {
       if (!confirm('Remover esta pessoa?')) return;
+      
       try {
-        const res = await fetch(`/confirmados/${id}`, { method: 'DELETE' });
+        const token = getToken();
+        
+        const res = await fetch(`/confirmados/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (res.status === 401) {
+          handleUnauthorized();
+          return;
+        }
+        
         const data = await res.json();
+        
         if (data.sucesso) {
           mostrarMensagem('Removido com sucesso!', 'sucesso');
           atualizarLista();
@@ -414,21 +447,35 @@
       }
     }
     
-    // FORM CONFIRMAÇÃO
+    // ==================== FORM CONFIRMAÇÃO ====================
     document.getElementById('formConfirma').addEventListener('submit', async function(e) {
       e.preventDefault();
+      
       const nome = document.getElementById('nome').value.trim();
       const tipo = document.getElementById('tipo').value;
       const genero = document.getElementById('genero').value;
+      
       if (!nome || !tipo || !genero) return;
       
       try {
+        const token = getToken();
+        
         const res = await fetch('/confirmar', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({ nome, tipo, genero })
         });
+        
+        if (res.status === 401) {
+          handleUnauthorized();
+          return;
+        }
+        
         const data = await res.json();
+        
         if (res.ok) {
           mostrarMensagem('Presença confirmada!', 'sucesso');
           this.reset();
@@ -441,135 +488,116 @@
       }
     });
     
-    // SORTEIO CORRIGIDO (24 max, 4x6 perfeitos, sem vaga extra se 24)
-function sortearTimes(confirmados) {
-  // Criar cópia independente dos dados
-  confirmados = JSON.parse(JSON.stringify(confirmados));
-  
-  // Garantir que todos têm gênero definido
-  confirmados.forEach(c => {
-    if (!c.genero) c.genero = 'masculino';
-  });
-  
-  // Separar por gênero
-  const homens = confirmados.filter(c => c.genero === 'masculino');
-  const mulheres = confirmados.filter(c => c.genero === 'feminino');
-  
-  // Função de embaralhamento (Fisher-Yates)
-  function shuffle(arr) {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }
-  
-  // EMBARALHAR A CADA SORTEIO
-  shuffle(homens);
-  shuffle(mulheres);
-  
-  // DEFINIR NÚMERO DE TIMES (3 ou 4)
-  const totalPessoas = confirmados.length;
-  const numTimes = totalPessoas <= 18 ? 3 : 4;
-  
-  // CALCULAR QUANTAS PESSOAS CADA TIME DEVE TER
-  const pessoasPorTime = Math.ceil(totalPessoas / numTimes);
-  
-  // Criar times vazios
-  const times = [];
-  for (let i = 0; i < numTimes; i++) {
-    times.push([]);
-  }
-  
-  // DISTRIBUIR MULHERES EQUILIBRADAMENTE
-  let timeIndex = 0;
-  for (let i = 0; i < mulheres.length; i++) {
-    // Adiciona mulher ao time atual
-    times[timeIndex].push(mulheres[i]);
-    
-    // Vai para o próximo time
-    timeIndex = (timeIndex + 1) % numTimes;
-  }
-  
-  // DISTRIBUIR HOMENS EQUILIBRADAMENTE
-  timeIndex = 0;
-  for (let i = 0; i < homens.length; i++) {
-    // Procura o time com menos pessoas (para equilibrar)
-    let menorTime = 0;
-    let menorTamanho = times[0].length;
-    
-    for (let t = 1; t < numTimes; t++) {
-      if (times[t].length < menorTamanho) {
-        menorTamanho = times[t].length;
-        menorTime = t;
-      }
-    }
-    
-    // Adiciona homem ao time com menos pessoas
-    times[menorTime].push(homens[i]);
-  }
-  
-  // PREENCHER COM VAGAS LIVRES ATÉ TODOS TEREM O MESMO TAMANHO
-  const maxSize = Math.max(...times.map(t => t.length));
-  for (let i = 0; i < numTimes; i++) {
-    while (times[i].length < maxSize) {
-      times[i].push({nome: 'Vaga Livre', genero: '', tipo: ''});
-    }
-  }
-  
-  return times;
-}
-    
-    // RENDER TIMES COM DRAG AND DROP PARA ADMIN
-function renderizarTimes() {
-  if (!window.ultimoSorteio) return;
-  
-  const times = window.ultimoSorteio;
-  const numTimes = times.length;  // Pode ser 3 ou 4
-  const canDrag = isAdmin;
-  
-  let html = '<div class="card">';
-  html += '<h3 class="card-title">Times Sorteados</h3>';
-  
-  if (canDrag) {
-    html += '<div class="admin-hint">💡 Arraste os jogadores para trocar de time</div>';
-  }
-  
-  html += '<div class="times-grid">';
-  
-  // LOOP DINÂMICO (3 ou 4 times)
-  for (let i = 0; i < numTimes; i++) {
-    html += `<div class="time-card" data-time="${i}">`;
-    html += `<h4>Time ${i + 1}</h4>`;
-    html += `<ul ${canDrag ? 'class="drag-target"' : ''} data-time="${i}">`;
-    
-    times[i].forEach((p, j) => {
-      const badge = p.genero ? `<span class="badge badge-${p.genero}">${p.genero === 'masculino' ? '♂' : '♀'}</span>` : '';
+    // ==================== SORTEIO ====================
+    function sortearTimes(confirmados) {
+      confirmados = JSON.parse(JSON.stringify(confirmados));
       
-      if (canDrag && p.nome !== 'Vaga Livre') {
-        html += `<li class="draggable" draggable="true" data-time="${i}" data-index="${j}">${p.nome} ${badge}</li>`;
-      } else {
-        html += `<li>${p.nome} ${badge}</li>`;
+      confirmados.forEach(c => {
+        if (!c.genero) c.genero = 'masculino';
+      });
+      
+      const homens = confirmados.filter(c => c.genero === 'masculino');
+      const mulheres = confirmados.filter(c => c.genero === 'feminino');
+      
+      function shuffle(arr) {
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
       }
-    });
+      
+      shuffle(homens);
+      shuffle(mulheres);
+      
+      const totalPessoas = confirmados.length;
+      const numTimes = totalPessoas <= 18 ? 3 : 4;
+      const pessoasPorTime = Math.ceil(totalPessoas / numTimes);
+      
+      const times = [];
+      for (let i = 0; i < numTimes; i++) {
+        times.push([]);
+      }
+      
+      let timeIndex = 0;
+      for (let i = 0; i < mulheres.length; i++) {
+        times[timeIndex].push(mulheres[i]);
+        timeIndex = (timeIndex + 1) % numTimes;
+      }
+      
+      timeIndex = 0;
+      for (let i = 0; i < homens.length; i++) {
+        let menorTime = 0;
+        let menorTamanho = times[0].length;
+        
+        for (let t = 1; t < numTimes; t++) {
+          if (times[t].length < menorTamanho) {
+            menorTamanho = times[t].length;
+            menorTime = t;
+          }
+        }
+        
+        times[menorTime].push(homens[i]);
+      }
+      
+      const maxSize = Math.max(...times.map(t => t.length));
+      for (let i = 0; i < numTimes; i++) {
+        while (times[i].length < maxSize) {
+          times[i].push({nome: 'Vaga Livre', genero: '', tipo: ''});
+        }
+      }
+      
+      return times;
+    }
     
-    html += '</ul>';
-    html += '</div>';
-  }
-  
-  html += '</div>';
-  html += '<button class="btn btn-whatsapp btn-block" style="margin-top:16px" onclick="compartilharWhatsApp()">📱 Compartilhar no WhatsApp</button>';
-  html += '</div>';
-  
-  document.getElementById('resultadoSorteio').innerHTML = html;
-  
-  if (canDrag) {
-    initDragAndDrop();
-  }
-}
-
+    // ==================== RENDER TIMES ====================
+    function renderizarTimes() {
+      if (!window.ultimoSorteio) return;
+      
+      const times = window.ultimoSorteio;
+      const numTimes = times.length;
+      const canDrag = isAdmin;
+      
+      let html = '<div class="card">';
+      html += '<h3 class="card-title">Times Sorteados</h3>';
+      
+      if (canDrag) {
+        html += '<div class="admin-hint">💡 Arraste os jogadores para trocar de time</div>';
+      }
+      
+      html += '<div class="times-grid">';
+      
+      for (let i = 0; i < numTimes; i++) {
+        html += `<div class="time-card" data-time="${i}">`;
+        html += `<h4>Time ${i + 1}</h4>`;
+        html += `<ul ${canDrag ? 'class="drag-target"' : ''} data-time="${i}">`;
+        
+        times[i].forEach((p, j) => {
+          const badge = p.genero ? `<span class="badge badge-${p.genero}">${p.genero === 'masculino' ? '♂' : '♀'}</span>` : '';
+          
+          if (canDrag && p.nome !== 'Vaga Livre') {
+            html += `<li class="draggable" draggable="true" data-time="${i}" data-index="${j}">${p.nome} ${badge}</li>`;
+          } else {
+            html += `<li>${p.nome} ${badge}</li>`;
+          }
+        });
+        
+        html += '</ul>';
+        html += '</div>';
+      }
+      
+      html += '</div>';
+      html += '<button class="btn btn-whatsapp btn-block" style="margin-top:16px" onclick="compartilharWhatsApp()">📱 Compartilhar no WhatsApp</button>';
+      html += '</div>';
+      
+      document.getElementById('resultadoSorteio').innerHTML = html;
+      
+      if (canDrag) {
+        initDragAndDrop();
+      }
+    }
     
-    // DRAG AND DROP PARA ADMIN
+    // ==================== DRAG AND DROP ====================
     function initDragAndDrop() {
       let draggedItem = null;
       let draggedFromTime = null;
@@ -607,7 +635,6 @@ function renderizarTimes() {
           const targetTime = parseInt(this.dataset.time);
           const targetIndex = parseInt(this.dataset.index);
           
-          // Trocar jogadores
           const temp = window.ultimoSorteio[draggedFromTime][draggedIndex];
           window.ultimoSorteio[draggedFromTime][draggedIndex] = window.ultimoSorteio[targetTime][targetIndex];
           window.ultimoSorteio[targetTime][targetIndex] = temp;
@@ -617,11 +644,24 @@ function renderizarTimes() {
       });
     }
     
-    // BOTÃO SORTEAR
+    // ==================== BOTÃO SORTEAR ====================
     document.getElementById('sortearTimes').addEventListener('click', async function(e) {
       e.preventDefault();
+      
       try {
-        const res = await fetch('/confirmados');
+        const token = getToken();
+        
+        const res = await fetch('/confirmados', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (res.status === 401) {
+          handleUnauthorized();
+          return;
+        }
+        
         const data = await res.json();
         const list = Array.isArray(data) ? data : (data.confirmed || []);
         const times = sortearTimes(list);
@@ -630,43 +670,59 @@ function renderizarTimes() {
         renderizarTimes();
       } catch (err) {
         console.error('Erro sorteio:', err);
+        mostrarMensagem('Erro ao sortear times', 'erro');
       }
     });
     
-    // LIMPAR SORTEIO
+    // ==================== LIMPAR SORTEIO ====================
     document.getElementById('limparSorteio').addEventListener('click', function() {
       document.getElementById('resultadoSorteio').innerHTML = '';
       this.style.display = 'none';
       window.ultimoSorteio = null;
     });
     
-    // WHATSAPP
-function compartilharWhatsApp() {
-  if (!window.ultimoSorteio) return;
-  
-  const numTimes = window.ultimoSorteio.length;
-  let mensagem = '🏐 *SORTEIO DOS TIMES - VÔLEI SEXTA*\n\n';
-  
-  for (let i = 0; i < numTimes; i++) {
-    mensagem += `*Time ${i + 1}*\n`;
-    window.ultimoSorteio[i].forEach(p => {
-      if (p.nome !== 'Vaga Livre') {
-        mensagem += `${p.nome}${p.genero ? ' ' + (p.genero === 'masculino' ? '♂' : '♀') : ''}\n`;
+    // ==================== WHATSAPP ====================
+    function compartilharWhatsApp() {
+      if (!window.ultimoSorteio) return;
+      
+      const numTimes = window.ultimoSorteio.length;
+      let mensagem = '🏐 *SORTEIO DOS TIMES - VÔLEI SEXTA*\n\n';
+      
+      for (let i = 0; i < numTimes; i++) {
+        mensagem += `*Time ${i + 1}*\n`;
+        window.ultimoSorteio[i].forEach(p => {
+          if (p.nome !== 'Vaga Livre') {
+            mensagem += `${p.nome}${p.genero ? ' ' + (p.genero === 'masculino' ? '♂' : '♀') : ''}\n`;
+          }
+        });
+        mensagem += '\n';
       }
-    });
-    mensagem += '\n';
-  }
-  
-  window.open(`https://wa.me/5511986439388?text=${encodeURIComponent(mensagem)}`, '_blank');
-}
+      
+      window.open(`https://wa.me/5511986439388?text=${encodeURIComponent(mensagem)}`, '_blank');
+    }
     
-    // LIMPAR LISTA
+    // ==================== LIMPAR LISTA ====================
     document.getElementById('limparConfirmados').addEventListener('click', async function(e) {
       e.preventDefault();
+      
       if (confirm('Limpar todos os confirmados?')) {
         try {
-          const res = await fetch('/confirmados', { method: 'DELETE' });
+          const token = getToken();
+          
+          const res = await fetch('/confirmados', {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (res.status === 401) {
+            handleUnauthorized();
+            return;
+          }
+          
           const data = await res.json();
+          
           if (data.sucesso) {
             mostrarMensagem('Lista limpa!', 'sucesso');
             atualizarLista();
@@ -677,7 +733,7 @@ function compartilharWhatsApp() {
       }
     });
     
-    // SISTEMA ADMIN
+    // ==================== SISTEMA ADMIN ====================
     let adminToken = null;
     let isAdmin = false;
     
@@ -696,13 +752,16 @@ function compartilharWhatsApp() {
     async function fazerLogin() {
       const usuario = document.getElementById('loginUsuario').value;
       const senha = document.getElementById('loginSenha').value;
+      
       try {
         const res = await fetch('/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ usuario, senha })
         });
+        
         const data = await res.json();
+        
         if (data.sucesso) {
           adminToken = data.token;
           isAdmin = true;
@@ -725,11 +784,14 @@ function compartilharWhatsApp() {
         try {
           await fetch('/logout', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: adminToken })
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${adminToken}`
+            }
           });
         } catch (e) {}
       }
+      
       adminToken = null;
       isAdmin = false;
       atualizarUIAdmin();
@@ -738,17 +800,15 @@ function compartilharWhatsApp() {
     }
     
     function atualizarUIAdmin() {
-      // Sidebar desktop
       document.getElementById('btnAdminSidebar').style.display = isAdmin ? 'none' : 'flex';
       document.getElementById('btnLogoutSidebar').style.display = isAdmin ? 'flex' : 'none';
-      // Bottom nav mobile
       document.getElementById('btnAdminMobile').style.display = isAdmin ? 'none' : 'flex';
       document.getElementById('btnLogoutMobile').style.display = isAdmin ? 'flex' : 'none';
-      // Re-renderiza times se existir sorteio ativo para ativar/desativar drag
+      
       if (window.ultimoSorteio) renderizarTimes();
     }
     
-    // REMOVER PESSOA DAS ESTATÍSTICAS (ADMIN)
+    // ==================== REMOVER DAS ESTATÍSTICAS ====================
     async function removerDasEstatisticas(nome) {
       if (!confirm(`Remover "${nome}" das estatísticas permanentemente?\n\nIsso apagará TODAS as confirmações dessa pessoa.`)) return;
       
@@ -762,6 +822,11 @@ function compartilharWhatsApp() {
           method: 'DELETE',
           headers
         });
+        
+        if (res.status === 401) {
+          handleUnauthorized();
+          return;
+        }
         
         const data = await res.json();
         
@@ -777,15 +842,27 @@ function compartilharWhatsApp() {
       }
     }
     
-    // ESTATÍSTICAS COM BOTÃO REMOVER ADMIN
+    // ==================== ESTATÍSTICAS ====================
     async function carregarEstatisticas() {
       try {
-        const headers = { 'Content-Type': 'application/json' };
+        const token = getToken();
+        
+        const headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        };
+        
         if (adminToken) {
           headers['Authorization'] = `Bearer ${adminToken}`;
         }
         
         const res = await fetch('/estatisticas', { headers });
+        
+        if (res.status === 401) {
+          handleUnauthorized();
+          return;
+        }
+        
         if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
         
         const data = await res.json();
@@ -805,19 +882,17 @@ function compartilharWhatsApp() {
         document.getElementById('rankingList').style.display = 'block';
         document.getElementById('emptyRanking').style.display = 'none';
         
-        // Usar dados do resumo do backend
         document.getElementById('statTotal').textContent = resumo.totalConfirmacoes || 0;
         document.getElementById('statJogadores').textContent = resumo.pessoasUnicas || 0;
         
-        // Contar mensalistas e avulsos do ranking
         const mensalistas = ranking.filter(r => r.tipo === 'mensalista').length;
         const avulsos = ranking.filter(r => r.tipo === 'avulso').length;
         document.getElementById('statMensalistas').textContent = mensalistas;
         document.getElementById('statAvulsos').textContent = avulsos;
         
-        // Renderizar ranking COM BOTÃO EXCLUIR ADMIN
         const ul = document.getElementById('rankingList');
         ul.innerHTML = '';
+        
         ranking.forEach((r, i) => {
           const li = document.createElement('li');
           li.className = 'ranking-item';
@@ -835,7 +910,6 @@ function compartilharWhatsApp() {
           countSpan.textContent = `${presencas} presenças`;
           rightDiv.appendChild(countSpan);
           
-          // Botão X somente se admin
           if (isAdmin) {
             const btnRemove = document.createElement('button');
             btnRemove.className = 'btn-remove';
@@ -857,7 +931,7 @@ function compartilharWhatsApp() {
       }
     }
     
-    // INICIALIZA
+    // ==================== INICIALIZAÇÃO ====================
     atualizarLista();
     atualizarUIAdmin();
   </script>

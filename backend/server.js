@@ -887,6 +887,11 @@ app.post('/api/registro', async (req, res) => {
   }
 });
 
+// Redirecionar /registro para /registro.html
+app.get('/registro', (req, res) => {
+  res.sendFile(__dirname + '/public/registro.html');
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });

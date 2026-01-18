@@ -634,6 +634,30 @@ app.post('/api/migrate/create-default-tenant', async (req, res) => {
   }
 });
 
+// ========== DEBUG: VERIFICAR ESTRUTURA DO BANCO ==========
+app.get('/api/check-db-structure', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'tenants'
+      ORDER BY ordinal_position
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/check-db-data', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM tenants LIMIT 5');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);

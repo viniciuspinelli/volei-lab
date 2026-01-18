@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Check Database</title>
+  <style>
+    body { 
+      font-family: monospace; 
+      background: #000; 
+      color: #0f0; 
+      padding: 20px; 
+    }
+    button { 
+      background: #0f0; 
+      color: #000; 
+      padding: 15px 30px; 
+      border: none; 
+      cursor: pointer; 
+      margin: 10px 0;
+    }
+    pre { 
+      background: #111; 
+      padding: 20px; 
+      white-space: pre-wrap; 
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Verificar Estrutura do Banco</h1>
+  <button onclick="checkStructure()">Ver Estrutura da Tabela TENANTS</button>
+  <button onclick="checkData()">Ver Dados da Tabela TENANTS</button>
+  <pre id="result">Aguardando...</pre>
+
+  <script>
+    async function checkStructure() {
+      try {
+        const res = await fetch('/api/check-db-structure');
+        const data = await res.json();
+        document.getElementById('result').textContent = 
+          'Colunas da tabela TENANTS:\n\n' + JSON.stringify(data, null, 2);
+      } catch (error) {
+        document.getElementById('result').textContent = 'Erro: ' + error.message;
+      }
+    }
+
+    async function checkData() {
+      try {
+        const res = await fetch('/api/check-db-data');
+        const data = await res.json();
+        document.getElementById('result').textContent = 
+          'Dados da tabela TENANTS:\n\n' + JSON.stringify(data, null, 2);
+      } catch (error) {
+        document.getElementById('result').textContent = 'Erro: ' + error.message;
+      }
+    }
+  </script>
+</body>
+</html>

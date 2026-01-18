@@ -119,7 +119,7 @@
     
     .bottom-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; background: var(--bg-secondary); border-top: 1px solid rgba(255,255,255,0.05); padding: var(--spacing-sm) 0; z-index: 1000; }
     .bottom-nav-items { display: flex; justify-content: space-around; align-items: center; }
-    .bottom-nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 16px; color: var(--text-muted); text-decoration: none; font-size: 11px; font-weight: 500; border: none; background: transparent; cursor: pointer; transition: color 0.2s; }
+    .bottom-nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 12px; color: var(--text-muted); text-decoration: none; font-size: 11px; font-weight: 500; border: none; background: transparent; cursor: pointer; transition: color 0.2s; }
     .bottom-nav-item .icon { font-size: 22px; }
     .bottom-nav-item.active { color: var(--accent); }
     
@@ -153,6 +153,10 @@
           <span class="icon">📊</span>
           <span>Estatísticas</span>
         </button>
+        <a href="/dashboard.html" class="nav-item">
+          <span class="icon">📈</span>
+          <span>Dashboard</span>
+        </a>
       </nav>
       <div class="sidebar-admin">
         <button class="nav-item" onclick="fazerLogout()">
@@ -255,26 +259,28 @@
     </main>
   </div>
 
+
   <nav class="bottom-nav">
     <div class="bottom-nav-items">
       <button class="bottom-nav-item active" data-page="confirmados">
         <span class="icon">📋</span>
-        <span>Confirmados</span>
+        <span>Lista</span>
       </button>
       <button class="bottom-nav-item" data-page="sorteio">
         <span class="icon">🎲</span>
         <span>Sorteio</span>
       </button>
-      <button class="bottom-nav-item" data-page="estatisticas">
-        <span class="icon">📊</span>
-        <span>Estatísticas</span>
-      </button>
+      <a href="/dashboard.html" class="bottom-nav-item">
+        <span class="icon">📈</span>
+        <span>Dashboard</span>
+      </a>
       <button class="bottom-nav-item" onclick="fazerLogout()">
         <span class="icon">🚪</span>
         <span>Sair</span>
       </button>
     </div>
   </nav>
+
 
   <script>
     let currentTenantId = null;
@@ -329,9 +335,11 @@
       }
     }
 
+
     function getToken() {
       return localStorage.getItem('adminToken');
     }
+
 
     function handleUnauthorized() {
       alert('Sessão expirada. Faça login novamente.');
@@ -339,6 +347,7 @@
       localStorage.removeItem('lastTenantId');
       window.location.href = '/login.html';
     }
+
 
     const navItems = document.querySelectorAll('[data-page]');
     const pages = document.querySelectorAll('.page');

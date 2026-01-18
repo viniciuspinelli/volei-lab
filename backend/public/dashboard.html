@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Volei Lab</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #ff6b00;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #e55e00;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            color: #999;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .stat-card .value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #ff6b00;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .subtitle {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .chart-card h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #ff6b00;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .ranking-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .ranking-table th {
+            background: rgba(255, 107, 0, 0.1);
+            padding: 12px;
+            text-align: left;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #ff6b00;
+        }
+
+        .ranking-table td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .ranking-table tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-masculino {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+        }
+
+        .badge-feminino {
+            background: rgba(236, 72, 153, 0.2);
+            color: #f472b6;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Dashboard</h1>
+        <div class="nav-buttons">
+            <a href="/index.html" class="btn btn-secondary">← Voltar</a>
+            <a href="/estatisticas.html" class="btn btn-secondary">📈 Estatísticas</a>
+        </div>
+    </div>
+
+    <!-- Cards de Estatísticas -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>Total de Confirmações</h3>
+            <div class="value" id="totalConfirmacoes">0</div>
+            <div class="subtitle">Todas as presenças</div>
+        </div>
+        <div class="stat-card">
+            <h3>Pessoas Únicas</h3>
+            <div class="value" id="pessoasUnicas">0</div>
+            <div class="subtitle">Jogadores cadastrados</div>
+        </div>
+        <div class="stat-card">
+            <h3>Média de Presenças</h3>
+            <div class="value" id="mediaPresencas">0</div>
+            <div class="subtitle">Por pessoa</div>
+        </div>
+        <div class="stat-card">
+            <h3>Taxa de Retenção</h3>
+            <div class="value" id="taxaRetencao">0%</div>
+            <div class="subtitle">Últimos 30 dias</div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="charts-grid">
+        <!-- Gráfico de Evolução Temporal -->
+        <div class="chart-card">
+            <h2>📈 Evolução de Confirmações</h2>
+            <div class="chart-container">
+                <canvas id="chartEvolucao"></canvas>
+            </div>
+        </div>
+
+        <!-- Gráfico de Distribuição por Gênero -->
+        <div class="chart-card">
+            <h2>👥 Distribuição por Gênero</h2>
+            <div class="chart-container">
+                <canvas id="chartGenero"></canvas>
+            </div>
+        </div>
+
+        <!-- Gráfico de Dias da Semana -->
+        <div class="chart-card">
+            <h2>📅 Confirmações por Dia da Semana</h2>
+            <div class="chart-container">
+                <canvas id="chartDiasSemana"></canvas>
+            </div>
+        </div>
+
+        <!-- Gráfico de Horário -->
+        <div class="chart-card">
+            <h2>🕐 Horário das Confirmações</h2>
+            <div class="chart-container">
+                <canvas id="chartHorario"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top 10 -->
+    <div class="chart-card">
+        <h2>🏆 Top 10 - Mais Presentes</h2>
+        <table class="ranking-table" id="topRanking">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Nome</th>
+                    <th>Gênero</th>
+                    <th>Tipo</th>
+                    <th>Presenças</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Preenchido por JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('adminToken');
+        
+        if (!token) {
+            window.location.href = '/login.html';
+        }
+
+        // Configuração global dos gráficos
+        Chart.defaults.color = '#999';
+        Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+
+        let charts = {};
+
+        async function carregarDashboard() {
+            try {
+                const response = await fetch('/api/dashboard/stats', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar dashboard');
+                }
+                
+                const data = await response.json();
+                
+                // Atualizar cards
+                document.getElementById('totalConfirmacoes').textContent = data.resumo.totalConfirmacoes;
+                document.getElementById('pessoasUnicas').textContent = data.resumo.pessoasUnicas;
+                document.getElementById('mediaPresencas').textContent = data.resumo.mediaConfirmacoes;
+                document.getElementById('taxaRetencao').textContent = data.resumo.taxaRetencao + '%';
+                
+                // Criar gráficos
+                criarGraficoEvolucao(data.evolucaoTemporal);
+                criarGraficoGenero(data.porGenero);
+                criarGraficoDiasSemana(data.porDiaSemana);
+                criarGraficoHorario(data.porHorario);
+                
+                // Criar tabela top 10
+                criarTabelaTop10(data.top10);
+                
+            } catch (err) {
+                console.error('Erro:', err);
+                alert('Erro ao carregar dashboard');
+            }
+        }
+
+        function criarGraficoEvolucao(data) {
+            const ctx = document.getElementById('chartEvolucao');
+            
+            if (charts.evolucao) charts.evolucao.destroy();
+            
+            charts.evolucao = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Confirmações',
+                        data: data.valores,
+                        borderColor: '#ff6b00',
+                        backgroundColor: 'rgba(255, 107, 0, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function criarGraficoGenero(data) {
+            const ctx = document.getElementById('chartGenero');
+            
+            if (charts.genero) charts.genero.destroy();
+            
+            charts.genero = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Masculino', 'Feminino'],
+                    datasets: [{
+                        data: [data.Masculino?.total || 0, data.Feminino?.total || 0],
+                        backgroundColor: ['#60a5fa', '#f472b6']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        function criarGraficoDiasSemana(data) {
+            const ctx = document.getElementById('chartDiasSemana');
+            
+            if (charts.dias) charts.dias.destroy();
+            
+            charts.dias = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Confirmações',
+                        data: data.valores,
+                        backgroundColor: '#ff6b00'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function criarGraficoHorario(data) {
+            const ctx = document.getElementById('chartHorario');
+            
+            if (charts.horario) charts.horario.destroy();
+            
+            charts.horario = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Confirmações',
+                        data: data.valores,
+                        backgroundColor: '#10b981'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function criarTabelaTop10(ranking) {
+            const tbody = document.querySelector('#topRanking tbody');
+            tbody.innerHTML = '';
+            
+            ranking.slice(0, 10).forEach((pessoa, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${index + 1}º</strong></td>
+                    <td>${pessoa.nome}</td>
+                    <td><span class="badge badge-${pessoa.genero.toLowerCase()}">${pessoa.genero}</span></td>
+                    <td>${pessoa.tipo}</td>
+                    <td><strong>${pessoa.total_confirmacoes}</strong></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Carregar ao iniciar
+        carregarDashboard();
+        
+        // Atualizar a cada 5 minutos
+        setInterval(carregarDashboard, 5 * 60 * 1000);
+    </script>
+</body>
+</html>

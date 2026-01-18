@@ -889,6 +889,142 @@ app.get('/registro', (req, res) => {
   res.sendFile(__dirname + '/public/registro.html');
 });
 
+// ==================== ROTA DE DASHBOARD ====================
+app.get('/api/dashboard/stats', verificarAdmin, async (req, res) => {
+  const tenantId = req.tenantId || 1;
+  
+  try {
+    // 1. Resumo geral
+    const totalConfirmacoes = await pool.query(
+      'SELECT COUNT(*) as total FROM historico_confirmacoes WHERE tenant_id = $1',
+      [tenantId]
+    );
+    
+    const pessoasUnicas = await pool.query(
+      'SELECT COUNT(DISTINCT nome) as total FROM historico_confirmacoes WHERE tenant_id = $1',
+      [tenantId]
+    );
+    
+    const total = parseInt(totalConfirmacoes.rows[0].total) || 0;
+    const pessoas = parseInt(pessoasUnicas.rows[0].total) || 1;
+    const media = pessoas > 0 ? (total / pessoas).toFixed(1) : 0;
+    
+    // Taxa de retenção (últimos 30 dias)
+    const ultimosMes = await pool.query(`
+      SELECT COUNT(DISTINCT nome) as total
+      FROM historico_confirmacoes
+      WHERE tenant_id = $1 AND data_confirmacao >= NOW() - INTERVAL '30 days'
+    `, [tenantId]);
+    
+    const retencao = pessoas > 0 ? ((parseInt(ultimosMes.rows[0].total) / pessoas) * 100).toFixed(0) : 0;
+    
+    // 2. Evolução temporal (últimos 30 dias)
+    const evolucao = await pool.query(`
+      SELECT DATE(data_confirmacao) as data, COUNT(*) as total
+      FROM historico_confirmacoes
+      WHERE tenant_id = $1 AND data_confirmacao >= NOW() - INTERVAL '30 days'
+      GROUP BY DATE(data_confirmacao)
+      ORDER BY data ASC
+    `, [tenantId]);
+    
+    const evolucaoTemporal = {
+      labels: evolucao.rows.map(r => new Date(r.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })),
+      valores: evolucao.rows.map(r => parseInt(r.total))
+    };
+    
+    // 3. Por gênero
+    const porGenero = await pool.query(`
+      SELECT genero, COUNT(*) as total
+      FROM historico_confirmacoes
+      WHERE tenant_id = $1
+      GROUP BY genero
+    `, [tenantId]);
+    
+    const generoObj = {};
+    porGenero.rows.forEach(row => {
+      generoObj[row.genero] = { total: parseInt(row.total) };
+    });
+    
+    // 4. Por dia da semana
+    const porDia = await pool.query(`
+      SELECT 
+        EXTRACT(DOW FROM data_confirmacao) as dia,
+        COUNT(*) as total
+      FROM historico_confirmacoes
+      WHERE tenant_id = $1
+      GROUP BY dia
+      ORDER BY dia
+    `, [tenantId]);
+    
+    const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const diasData = Array(7).fill(0);
+    porDia.rows.forEach(r => {
+      diasData[parseInt(r.dia)] = parseInt(r.total);
+    });
+    
+    const porDiaSemana = {
+      labels: diasSemana,
+      valores: diasData
+    };
+    
+    // 5. Por horário
+    const porHorario = await pool.query(`
+      SELECT 
+        EXTRACT(HOUR FROM data_confirmacao) as hora,
+        COUNT(*) as total
+      FROM historico_confirmacoes
+      WHERE tenant_id = $1
+      GROUP BY hora
+      ORDER BY hora
+    `, [tenantId]);
+    
+    const horariosLabels = [];
+    const horariosValores = [];
+    porHorario.rows.forEach(r => {
+      const hora = parseInt(r.hora);
+      horariosLabels.push(`${hora}h`);
+      horariosValores.push(parseInt(r.total));
+    });
+    
+    const porHorarioObj = {
+      labels: horariosLabels,
+      valores: horariosValores
+    };
+    
+    // 6. Top 10
+    const top10 = await pool.query(`
+      SELECT 
+        nome,
+        tipo,
+        genero,
+        COUNT(*) as total_confirmacoes
+      FROM historico_confirmacoes
+      WHERE tenant_id = $1
+      GROUP BY nome, tipo, genero
+      ORDER BY total_confirmacoes DESC
+      LIMIT 10
+    `, [tenantId]);
+    
+    res.json({
+      resumo: {
+        totalConfirmacoes: total,
+        pessoasUnicas: pessoas,
+        mediaConfirmacoes: media,
+        taxaRetencao: retencao
+      },
+      evolucaoTemporal,
+      porGenero: generoObj,
+      porDiaSemana,
+      porHorario: porHorarioObj,
+      top10: top10.rows
+    });
+    
+  } catch (err) {
+    console.error('Erro no dashboard:', err);
+    res.status(500).json({ erro: 'Erro ao buscar estatísticas do dashboard' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });

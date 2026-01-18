@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+<head><title>Set Trial</title></head>
+<body style="font-family:monospace;background:#000;color:#0f0;padding:20px;">
+  <button onclick="setTrial()">Definir Trial 30 dias para TODOS</button>
+  <pre id="log"></pre>
+  <script>
+    async function setTrial() {
+      const res = await fetch('/api/set-trial', {method:'POST'});
+      document.getElementById('log').textContent = await res.text();
+    }
+  </script>
+</body>
+</html>

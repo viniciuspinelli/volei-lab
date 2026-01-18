@@ -18,7 +18,7 @@ const pool = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 });
 
-// Configurar Mercado Pago
+// Configurar Mercado Pago (v1.x - fixado no package.json)
 mercadopago.configure({
   access_token: process.env.MERCADOPAGO_ACCESS_TOKEN
 });
@@ -104,7 +104,12 @@ async function extrairTenantId(req, res, next) {
       req.path === '/registro' || 
       req.path === '/logout' || 
       req.path === '/verificar-token' ||
-      req.path === '/webhook/mercadopago') {
+      req.path === '/webhook/mercadopago' ||
+      req.path.startsWith('/api/create') ||
+      req.path.startsWith('/api/check') ||
+      req.path.startsWith('/api/fix') ||
+      req.path.startsWith('/api/set') ||
+      req.path.startsWith('/api/migrate')) {
     return next();
   }
 
@@ -153,31 +158,16 @@ async function verificarStatusTenant(req, res, next) {
       req.path === '/registro' || 
       req.path === '/verificar-token' ||
       req.path === '/webhook/mercadopago' ||
-      req.path.match(/\.(css|js|jpg|png|gif|ico)$/)) {
+      req.path.startsWith('/payment') ||
+      req.path.startsWith('/success') ||
+      req.path.startsWith('/failure') ||
+      req.path.startsWith('/check-') ||
+      req.path.startsWith('/fix-') ||
+      req.path.startsWith('/set-') ||
+      req.path.startsWith('/migrate-') ||
+      req.path.startsWith('/create-') ||
+      req.path.match(/\.(css|js|jpg|png|gif|ico|svg)$/)) {
     return next();
-    if (!tenant || !tenant.status || tenant.status === 'pending' || tenant.status === 'trial') {
-  // Permitir acesso para trial ou pendente, mas mostrar aviso
-  return res.status(402).send(`
-    <!DOCTYPE html>
-    <html><head><meta charset="UTF-8"><title>Trial Ativo</title>
-    <style>body{font-family:sans-serif;background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%);color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;}
-    .container{text-align:center;max-width:500px;}
-    h1{font-size:72px;margin-bottom:20px;color:#fbbf24;}
-    h2{font-size:28px;margin-bottom:16px;}
-    p{color:#999;font-size:16px;line-height:1.6;}
-    .btn{background:#667eea;color:white;padding:15px 30px;text-decoration:none;border-radius:8px;display:inline-block;}
-    </style></head>
-    <body>
-      <div class="container">
-        <h1>⏳ Trial Ativo</h1>
-        <h2>Você tem 7 dias grátis!</h2>
-        <p>Seu time está ativo por tempo limitado. Assine para continuar usando.</p>
-        <a href="/payment.html?tenant=${req.tenantId}" class="btn">💳 Assinar Agora</a>
-      </div>
-    </body></html>
-  `);
-}
-
   }
 
   // Verificar apenas para páginas HTML
@@ -205,6 +195,7 @@ async function verificarStatusTenant(req, res, next) {
 
       const status = result.rows[0].status;
 
+      // Bloqueio total para inativos
       if (status === 'inactive') {
         return res.status(403).send(`
           <!DOCTYPE html>
@@ -216,6 +207,7 @@ async function verificarStatusTenant(req, res, next) {
         `);
       }
 
+      // Aviso para pending/expired (mas permite acesso temporário)
       if (status === 'pending' || status === 'expired') {
         return res.status(403).send(`
           <!DOCTYPE html>
@@ -223,18 +215,23 @@ async function verificarStatusTenant(req, res, next) {
           <body style="font-family: Arial; text-align: center; padding: 50px;">
             <h1>⏳ Assinatura ${status === 'expired' ? 'expirada' : 'pendente'}</h1>
             <p>Aguardando confirmação de pagamento.</p>
-            <a href="/payment.html" style="display: inline-block; margin-top: 20px; padding: 15px 30px; background: #009ee3; color: white; text-decoration: none; border-radius: 8px;">
+            <a href="/payment.html?tenant=${req.tenantId}" style="display: inline-block; margin-top: 20px; padding: 15px 30px; background: #009ee3; color: white; text-decoration: none; border-radius: 8px;">
               Assinar agora
             </a>
           </body></html>
         `);
       }
+
+      // Trial ou active - permite acesso
+      next();
+
     } catch (error) {
       console.error('Erro ao verificar status do tenant:', error);
+      next();
     }
+  } else {
+    next();
   }
-  
-  next();
 }
 
 // Aplicar middlewares
@@ -245,15 +242,12 @@ app.use(express.static('public'));
 // ==================== ROTAS DE AUTENTICAÇÃO ====================
 
 // Login
-// Login
-// Login
 app.post('/login', async (req, res) => {
   const { usuario, senha } = req.body;
   
   console.log('🔐 Tentativa de login:', { usuario });
   
   try {
-    // Verificar se os campos foram enviados
     if (!usuario || !senha) {
       console.log('❌ Campos vazios');
       return res.status(400).json({ 
@@ -262,7 +256,6 @@ app.post('/login', async (req, res) => {
       });
     }
     
-    // Buscar admin no banco
     const result = await pool.query(
       'SELECT * FROM admins WHERE usuario = $1',
       [usuario]
@@ -281,7 +274,6 @@ app.post('/login', async (req, res) => {
     const admin = result.rows[0];
     console.log('👤 Admin encontrado:', { id: admin.id, tenant_id: admin.tenant_id });
     
-    // Verificar senha
     const senhaValida = await bcrypt.compare(senha, admin.senha_hash);
     console.log('🔑 Senha válida:', senhaValida);
 
@@ -293,19 +285,18 @@ app.post('/login', async (req, res) => {
       });
     }
 
-    // Gerar token
     const token = crypto.randomBytes(32).toString('hex');
-    const expiraEm = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 dias
+    const expiraEm = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     await pool.query(
       'INSERT INTO admin_tokens (token, admin_id, expira_em) VALUES ($1, $2, $3)',
       [token, admin.id, expiraEm]
     );
 
-    console.log('✅ Login bem-sucedido - Token:', token.substring(0, 10) + '...');
+    console.log('✅ Login bem-sucedido');
 
     res.json({ 
-      sucesso: true,   // ← PORTUGUÊS
+      sucesso: true,
       token,
       tenant_id: admin.tenant_id
     });
@@ -313,15 +304,12 @@ app.post('/login', async (req, res) => {
   } catch (error) {
     console.error('💥 Erro no login:', error);
     res.status(500).json({ 
-      sucesso: false,   // ← PORTUGUÊS
+      sucesso: false,
       erro: 'Erro no servidor: ' + error.message 
     });
   }
 });
 
-
-
-// Verificar token
 // Verificar token
 app.get('/verificar-token', async (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
@@ -361,7 +349,6 @@ app.get('/verificar-token', async (req, res) => {
   }
 });
 
-
 // Logout
 app.post('/logout', async (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
@@ -379,7 +366,6 @@ app.post('/logout', async (req, res) => {
 
 // ==================== ROTAS DE CONFIRMAÇÃO ====================
 
-// Buscar confirmados atuais
 app.get('/confirmados', async (req, res) => {
   try {
     const result = await pool.query(
@@ -393,7 +379,6 @@ app.get('/confirmados', async (req, res) => {
   }
 });
 
-// Adicionar confirmado
 app.post('/confirmados', async (req, res) => {
   const { nome, tipo, genero } = req.body;
   
@@ -411,7 +396,6 @@ app.post('/confirmados', async (req, res) => {
   }
 });
 
-// Remover confirmado
 app.delete('/confirmados/:id', async (req, res) => {
   try {
     await pool.query(
@@ -425,14 +409,12 @@ app.delete('/confirmados/:id', async (req, res) => {
   }
 });
 
-// Limpar lista
 app.delete('/limpar', async (req, res) => {
   const client = await pool.connect();
   
   try {
     await client.query('BEGIN');
     
-    // Mover para histórico
     await client.query(
       `INSERT INTO historico_confirmacoes (tenant_id, nome, tipo, genero, data_confirmacao)
        SELECT tenant_id, nome, tipo, genero, data_confirmacao 
@@ -441,7 +423,6 @@ app.delete('/limpar', async (req, res) => {
       [req.tenantId]
     );
     
-    // Limpar atual
     await client.query(
       'DELETE FROM confirmados_atual WHERE tenant_id = $1',
       [req.tenantId]
@@ -458,7 +439,6 @@ app.delete('/limpar', async (req, res) => {
   }
 });
 
-// Buscar estatísticas
 app.get('/estatisticas', async (req, res) => {
   try {
     const result = await pool.query(
@@ -478,8 +458,6 @@ app.get('/estatisticas', async (req, res) => {
 
 // ==================== ROTAS ADMIN ====================
 
-// Listar todos os tenants (super admin)
-// Listar todos os tenants (admin)
 app.get('/api/admin/tenants', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -506,8 +484,6 @@ app.get('/api/admin/tenants', async (req, res) => {
   }
 });
 
-
-// Atualizar tenant
 app.put('/api/admin/tenants/:id', async (req, res) => {
   const { id } = req.params;
   const { name, whatsapp, status, subscription_plan, subscription_expires } = req.body;
@@ -539,7 +515,6 @@ app.put('/api/admin/tenants/:id', async (req, res) => {
   }
 });
 
-// Deletar tenant
 app.delete('/api/admin/tenants/:id', async (req, res) => {
   const { id } = req.params;
   
@@ -557,10 +532,8 @@ app.delete('/api/admin/tenants/:id', async (req, res) => {
   }
 });
 
-
 // ==================== MERCADO PAGO ====================
 
-// Criar pagamento
 app.post('/api/create-payment', async (req, res) => {
   const { plano, tenant_id } = req.body;
   
@@ -601,18 +574,15 @@ app.post('/api/create-payment', async (req, res) => {
   }
 });
 
-// ========== WEBHOOK MERCADO PAGO ==========
 app.post('/webhook/mercadopago', async (req, res) => {
   try {
     const { type, data, action } = req.body;
     
     console.log('📩 Webhook recebido:', { type, action, data });
     
-    // Mercado Pago pode enviar vários tipos de notificação
     if (type === 'payment' || action === 'payment.created' || action === 'payment.updated') {
       const paymentId = data.id;
       
-      // Buscar detalhes completos do pagamento
       const payment = await mercadopago.payment.findById(paymentId);
       const paymentData = payment.body;
       
@@ -628,7 +598,6 @@ app.post('/webhook/mercadopago', async (req, res) => {
         return res.status(200).send('OK');
       }
       
-      // Processar pagamento aprovado
       if (paymentData.status === 'approved') {
         const mesesValidade = plano === 'mensal' ? 1 : 12;
         const dataExpiracao = new Date();
@@ -648,7 +617,6 @@ app.post('/webhook/mercadopago', async (req, res) => {
         console.log(`✅ Tenant ${tenantId} ATIVADO até ${dataExpiracao.toLocaleDateString('pt-BR')}`);
       }
       
-      // Processar pagamento rejeitado/cancelado
       else if (paymentData.status === 'rejected' || paymentData.status === 'cancelled') {
         await pool.query(
           `UPDATE tenants 
@@ -661,7 +629,6 @@ app.post('/webhook/mercadopago', async (req, res) => {
         console.log(`❌ Pagamento rejeitado para tenant ${tenantId}`);
       }
       
-      // Pagamento pendente (boleto, pix aguardando)
       else if (paymentData.status === 'pending') {
         console.log(`⏳ Pagamento pendente para tenant ${tenantId}`);
       }
@@ -675,8 +642,8 @@ app.post('/webhook/mercadopago', async (req, res) => {
   }
 });
 
-// ========== CRON JOB - VERIFICAR ASSINATURAS ==========
-// Executa todo dia às 02:00 AM
+// ==================== CRON JOB ====================
+
 cron.schedule('0 2 * * *', async () => {
   try {
     console.log('🔍 Verificando assinaturas expiradas...');
@@ -699,47 +666,8 @@ cron.schedule('0 2 * * *', async () => {
   }
 });
 
-// ========== ROTAS DE MIGRAÇÃO (TEMPORÁRIAS) ==========
-app.post('/api/migrate/add-column', async (req, res) => {
-  const { column } = req.body;
-  try {
-    await pool.query(`
-      ALTER TABLE tenants 
-      ADD COLUMN IF NOT EXISTS ${column} ${column.includes('timestamp') ? 'TIMESTAMP DEFAULT NOW()' : 'VARCHAR(255)'}
-    `);
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+// ==================== ROTAS DE DEBUG/UTILITÁRIOS ====================
 
-app.post('/api/migrate/add-constraint', async (req, res) => {
-  try {
-    await pool.query(`
-      ALTER TABLE tenants 
-      ADD CONSTRAINT IF NOT EXISTS tenants_status_check 
-      CHECK (status IN ('active', 'pending', 'expired', 'inactive'))
-    `);
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/api/migrate/create-default-tenant', async (req, res) => {
-  try {
-    const result = await pool.query(`
-      INSERT INTO tenants (id, name, email, status, subscription_plan, subscription_expires)
-      VALUES (1, 'Time Principal', 'admin@voleilab.com', 'active', 'mensal', NOW() + INTERVAL '30 days')
-      ON CONFLICT (id) DO NOTHING
-    `);
-    res.json({ success: true, rows: result.rowCount });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ========== DEBUG: VERIFICAR ESTRUTURA DO BANCO ==========
 app.get('/api/check-db-structure', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -763,7 +691,6 @@ app.get('/api/check-db-data', async (req, res) => {
   }
 });
 
-// Debug: verificar admins
 app.get('/api/check-admins', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -778,7 +705,6 @@ app.get('/api/check-admins', async (req, res) => {
   }
 });
 
-// Criar admin de teste (REMOVER EM PRODUÇÃO)
 app.post('/api/create-test-admin', async (req, res) => {
   const { email, senha, tenant_id } = req.body;
   
@@ -799,10 +725,8 @@ app.post('/api/create-test-admin', async (req, res) => {
   }
 });
 
-// Fix status dos tenants (TEMPORÁRIO)
 app.post('/api/fix-tenant-status', async (req, res) => {
   try {
-    // 1. Definir status padrão para null/undefined
     const fixados = await pool.query(`
       UPDATE tenants 
       SET status = COALESCE(status, 'pending'),
@@ -811,7 +735,6 @@ app.post('/api/fix-tenant-status', async (req, res) => {
       RETURNING id, nome, status
     `);
     
-    // 2. Definir data_vencimento para trial de 7 dias
     await pool.query(`
       UPDATE tenants 
       SET data_vencimento = NOW() + INTERVAL '7 days'
@@ -830,6 +753,20 @@ app.post('/api/fix-tenant-status', async (req, res) => {
   }
 });
 
+app.post('/api/set-trial', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      UPDATE tenants 
+      SET data_vencimento = NOW() + INTERVAL '30 days',
+          status = 'active'
+      WHERE status IN ('active', 'trial', 'pending')
+      RETURNING id, nome
+    `);
+    res.json({ updated: result.rowCount, tenants: result.rows });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);

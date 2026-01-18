@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Migração Tenants</title>
+  <style>
+    body { 
+      font-family: monospace; 
+      background: #000; 
+      color: #0f0; 
+      padding: 20px; 
+    }
+    button { 
+      background: #0f0; 
+      color: #000; 
+      padding: 15px 30px; 
+      border: none; 
+      font-size: 16px; 
+      cursor: pointer; 
+    }
+    #logs { 
+      background: #111; 
+      padding: 20px; 
+      height: 400px; 
+      overflow-y: auto; 
+      white-space: pre-wrap; 
+      border: 1px solid #0f0; 
+    }
+  </style>
+</head>
+<body>
+  <h1>🔧 Migração da Tabela Tenants</h1>
+  <button onclick="executarMigracao()">🚀 Executar Migração</button>
+  <div id="logs">Aguardando...</div>
+
+  <script>
+    async function adicionarLog(msg) {
+      const logs = document.getElementById('logs');
+      logs.textContent += `${new Date().toLocaleTimeString()}: ${msg}\n`;
+      logs.scrollTop = logs.scrollHeight;
+    }
+
+    async function executarMigracao() {
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = 'Executando...';
+      
+      adicionarLog('Iniciando migração da tabela tenants...');
+      
+      try {
+        // 1. Adicionar colunas se não existirem
+        const cols = ['created_at', 'updated_at', 'subscription_plan', 'subscription_expires', 'mercadopago_payment_id'];
+        
+        for (const col of cols) {
+          adicionarLog(`Verificando coluna ${col}...`);
+          const res = await fetch('/api/migrate/add-column', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ column: col })
+          });
+          adicionarLog(`Coluna ${col}: ${res.ok ? '✅ OK' : '⚠️ ' + await res.text()}`);
+        }
+        
+        // 2. Criar constraint de status
+        adicionarLog('Criando constraint de status...');
+        const constraintRes = await fetch('/api/migrate/add-constraint');
+        adicionarLog(`Constraint: ${constraintRes.ok ? '✅ OK' : '⚠️ ' + await constraintRes.text()}`);
+        
+        // 3. Criar tenant padrão se não existir
+        adicionarLog('Criando tenant padrão...');
+        const tenantRes = await fetch('/api/migrate/create-default-tenant');
+        adicionarLog(`Tenant padrão: ${tenantRes.ok ? '✅ OK' : '⚠️ ' + await tenantRes.text()}`);
+        
+        adicionarLog('🎉 MIGRAÇÃO CONCLUÍDA COM SUCESSO!');
+        adicionarLog('🔄 Aguarde 10s e recarregue o painel admin');
+        
+      } catch (error) {
+        adicionarLog(`❌ Erro: ${error.message}`);
+      }
+      
+      btn.disabled = false;
+      btn.textContent = '🚀 Executar Migração';
+    }
+  </script>
+</body>
+</html>

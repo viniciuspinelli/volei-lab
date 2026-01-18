@@ -594,6 +594,47 @@ cron.schedule('0 2 * * *', async () => {
   }
 });
 
+// ========== ROTAS DE MIGRAÇÃO (TEMPORÁRIAS) ==========
+app.post('/api/migrate/add-column', async (req, res) => {
+  const { column } = req.body;
+  try {
+    await pool.query(`
+      ALTER TABLE tenants 
+      ADD COLUMN IF NOT EXISTS ${column} ${column.includes('timestamp') ? 'TIMESTAMP DEFAULT NOW()' : 'VARCHAR(255)'}
+    `);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/migrate/add-constraint', async (req, res) => {
+  try {
+    await pool.query(`
+      ALTER TABLE tenants 
+      ADD CONSTRAINT IF NOT EXISTS tenants_status_check 
+      CHECK (status IN ('active', 'pending', 'expired', 'inactive'))
+    `);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/migrate/create-default-tenant', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      INSERT INTO tenants (id, name, email, status, subscription_plan, subscription_expires)
+      VALUES (1, 'Time Principal', 'admin@voleilab.com', 'active', 'mensal', NOW() + INTERVAL '30 days')
+      ON CONFLICT (id) DO NOTHING
+    `);
+    res.json({ success: true, rows: result.rowCount });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log('⏰ Cron job de assinaturas ativado');

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assinatura VoleiLab - Escolha seu Plano</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      text-align: center;
+      color: white;
+      margin-bottom: 40px;
+    }
+    .header h1 {
+      font-size: 3rem;
+      margin-bottom: 10px;
+    }
+    .header p {
+      font-size: 1.2rem;
+      opacity: 0.9;
+    }
+    .plans-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 30px;
+      margin-bottom: 40px;
+    }
+    .plan-card {
+      background: white;
+      border-radius: 20px;
+      padding: 40px 30px;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      transition: all 0.3s;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    .plan-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 30px 60px rgba(0,0,0,0.15);
+    }
+    .plan-card.popular {
+      border: 3px solid #667eea;
+      transform: scale(1.05);
+    }
+    .plan-name {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #333;
+    }
+    .plan-price {
+      font-size: 3.5rem;
+      font-weight: 800;
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+    .plan-period {
+      color: #666;
+      font-size: 1.1rem;
+      margin-bottom: 30px;
+    }
+    .plan-features {
+      list-style: none;
+      margin-bottom: 30px;
+    }
+    .plan-features li {
+      padding: 8px 0;
+      color: #555;
+    }
+    .plan-features li::before {
+      content: "✅";
+      margin-right: 10px;
+      color: #4CAF50;
+    }
+    .btn-assinar {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 15px 40px;
+      border-radius: 50px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      width: 100%;
+    }
+    .btn-assinar:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+    }
+    .btn-assinar:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .loading {
+      display: none;
+      text-align: center;
+      margin-top: 20px;
+    }
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .back-btn {
+      display: inline-block;
+      color: white;
+      text-decoration: none;
+      margin-bottom: 20px;
+      padding: 10px 20px;
+      border: 2px solid white;
+      border-radius: 25px;
+      transition: all 0.3s;
+    }
+    .back-btn:hover {
+      background: white;
+      color: #667eea;
+    }
+    @media (max-width: 768px) {
+      .plans-container { grid-template-columns: 1fr; }
+      .plan-card.popular { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/" class="back-btn">← Voltar ao Sistema</a>
+    
+    <div class="header">
+      <h1>🏐 Escolha seu Plano</h1>
+      <p>Assine o VoleiLab e gerencie seu time de vôlei de forma profissional</p>
+    </div>
+
+    <div class="plans-container">
+      <!-- Plano Mensal -->
+      <div class="plan-card" onclick="selecionarPlano('mensal')">
+        <div class="plan-name">Plano Mensal</div>
+        <div class="plan-price">R$ 29<span style="font-size: 1.5rem;">90</span></div>
+        <div class="plan-period">por mês</div>
+        
+        <ul class="plan-features">
+          <li>✅ Painel de gestão completo</li>
+          <li>✅ Confirmações automáticas</li>
+          <li>✅ Sorteios automáticos</li>
+          <li>✅ WhatsApp integrado</li>
+          <li>✅ Suporte prioritário</li>
+        </ul>
+        
+        <button class="btn-assinar" id="btn-mensal">
+          Assinar Mensal
+        </button>
+      </div>
+
+      <!-- Plano Anual (POPULAR) -->
+      <div class="plan-card popular" onclick="selecionarPlano('anual')">
+        <div style="position: absolute; top: 20px; right: 20px; background: #4CAF50; color: white; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;">POPULAR</div>
+        
+        <div class="plan-name">Plano Anual</div>
+        <div class="plan-price">R$ 299<span style="font-size: 1.5rem;">00</span></div>
+        <div class="plan-period"><strong>Economize 17%</strong> - R$ 24,92/mês</div>
+        
+        <ul class="plan-features">
+          <li>✅ Tudo do plano mensal</li>
+          <li>✅ Desconto de 17%</li>
+          <li>✅ Sem preocupações anuais</li>
+          <li>✅ Backup automático</li>
+          <li>✅ Relatórios avançados</li>
+        </ul>
+        
+        <button class="btn-assinar" id="btn-anual">
+          Assinar Anual (Melhor Valor)
+        </button>
+      </div>
+    </div>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>Redirecionando para o Mercado Pago...</p>
+    </div>
+  </div>
+
+  <script>
+    let planoSelecionado = null;
+    
+    function selecionarPlano(plano) {
+      planoSelecionado = plano;
+      
+      // Remover seleção anterior
+      document.querySelectorAll('.plan-card').forEach(card => {
+        card.style.border = 'none';
+        card.style.transform = 'none';
+      });
+      
+      // Destacar plano selecionado
+      event.currentTarget.style.border = '3px solid #667eea';
+      event.currentTarget.style.transform = 'scale(1.02)';
+    }
+    
+    async function criarPagamento(plano) {
+      const tenantId = localStorage.getItem('tenantId') || 1;
+      
+      document.getElementById('loading').style.display = 'block';
+      
+      try {
+        const response = await fetch('/api/create-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            plano: plano, 
+            tenant_id: tenantId 
+          })
+        });
+        
+        const data = await response.json();
+        console.log('Resposta do pagamento:', data);
+        
+        if (data.init_point) {
+          // Redirecionar para Mercado Pago
+          window.location.href = data.init_point;
+        } else {
+          throw new Error(data.erro || 'Resposta inválida do servidor');
+        }
+        
+      } catch (error) {
+        console.error('Erro ao criar pagamento:', error);
+        alert('❌ Erro ao processar pagamento: ' + error.message);
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
+    
+    // Event listeners dos botões
+    document.getElementById('btn-mensal').onclick = () => criarPagamento('mensal');
+    document.getElementById('btn-anual').onclick = () => criarPagamento('anual');
+    
+    // Enter no plano selecionado
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && planoSelecionado) {
+        criarPagamento(planoSelecionado);
+      }
+    });
+  </script>
+</body>
+</html>

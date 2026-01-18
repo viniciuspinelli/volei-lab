@@ -806,6 +806,75 @@ app.get('/api/debug/tenant-check', async (req, res) => {
   }
 });
 
+// ==================== ROTA DE REGISTRO ====================
+app.post('/api/registro', async (req, res) => {
+  const { nome_time, nome_usuario, email, telefone, whatsapp, senha } = req.body;
+  
+  console.log('=== POST /api/registro ===');
+  console.log('Nome do Time:', nome_time);
+  console.log('Email:', email);
+  
+  if (!nome_time || !nome_usuario || !email || !senha) {
+    return res.status(400).json({ erro: 'Campos obrigatórios: Nome do Time, Nome, Email e Senha' });
+  }
+  
+  if (senha.length < 6) {
+    return res.status(400).json({ erro: 'Senha deve ter no mínimo 6 caracteres' });
+  }
+  
+  try {
+    // Verificar se email já existe
+    const emailExiste = await pool.query(
+      'SELECT id FROM admins WHERE usuario = $1',
+      [email]
+    );
+    
+    if (emailExiste.rows.length > 0) {
+      return res.status(400).json({ erro: 'Este email já está cadastrado' });
+    }
+    
+    // Gerar subdomain a partir do nome do time
+    const subdomain = nome_time.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove acentos
+      .replace(/[^a-z0-9]/g, '-') // Substitui caracteres especiais por -
+      .replace(/-+/g, '-') // Remove - duplicados
+      .replace(/^-|-$/g, ''); // Remove - do início e fim
+    
+    // 1. Criar tenant
+    const tenantResult = await pool.query(`
+      INSERT INTO tenants (nome, subdomain, whatsapp_number, status, plano)
+      VALUES ($1, $2, $3, 'active', 'mensal')
+      RETURNING id
+    `, [nome_time, subdomain, whatsapp || '']);
+    
+    const tenantId = tenantResult.rows[0].id;
+    
+    // 2. Hash da senha
+    const senhaHash = await bcrypt.hash(senha, 10);
+    
+    // 3. Criar admin
+    await pool.query(`
+      INSERT INTO admins (tenant_id, usuario, senha_hash, status)
+      VALUES ($1, $2, $3, 'active')
+    `, [tenantId, email, senhaHash]);
+    
+    console.log('✅ Conta criada com sucesso! Tenant ID:', tenantId);
+    
+    res.json({ 
+      sucesso: true, 
+      mensagem: 'Conta criada com sucesso!',
+      tenant_id: tenantId
+    });
+    
+  } catch (err) {
+    console.error('❌ Erro ao criar conta:', err);
+    res.status(500).json({ 
+      erro: 'Erro ao criar conta. Tente novamente.' 
+    });
+  }
+});
+
+
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });

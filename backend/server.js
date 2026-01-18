@@ -410,15 +410,23 @@ app.get('/estatisticas', async (req, res) => {
 // ==================== ROTAS ADMIN ====================
 
 // Listar todos os tenants (super admin)
+// Listar todos os tenants (admin)
 app.get('/api/admin/tenants', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT id, nome as name, email, whatsapp, status, subscription_plan, 
-             subscription_expires, created_at,
-             CASE 
-               WHEN subscription_expires < NOW() AND status = 'active' THEN true
-               ELSE false
-             END as is_expired
+      SELECT 
+        id, 
+        nome as name, 
+        subdomain,
+        whatsapp_number as whatsapp,
+        status, 
+        plano as subscription_plan,
+        COALESCE(subscription_expires, data_vencimento) as subscription_expires,
+        created_at,
+        CASE 
+          WHEN COALESCE(subscription_expires, data_vencimento) < NOW() AND status = 'active' THEN true
+          ELSE false
+        END as is_expired
       FROM tenants 
       ORDER BY created_at DESC
     `);
@@ -429,29 +437,57 @@ app.get('/api/admin/tenants', async (req, res) => {
   }
 });
 
+
 // Atualizar tenant
 app.put('/api/admin/tenants/:id', async (req, res) => {
   const { id } = req.params;
-  const { status, subscription_plan, subscription_expires } = req.body;
+  const { name, whatsapp, status, subscription_plan, subscription_expires } = req.body;
   
   try {
     const result = await pool.query(
       `UPDATE tenants 
-       SET status = $1, 
-           subscription_plan = $2, 
-           subscription_expires = $3,
-           updated_at = NOW()
-       WHERE id = $4
-       RETURNING *`,
-      [status, subscription_plan, subscription_expires, id]
+       SET nome = $1,
+           whatsapp_number = $2,
+           status = $3, 
+           plano = $4,
+           subscription_expires = $5,
+           data_vencimento = $5,
+           updated_at = NOW(),
+           ultima_atualizacao = NOW()
+       WHERE id = $6
+       RETURNING id, nome as name, whatsapp_number as whatsapp, status, plano as subscription_plan, subscription_expires`,
+      [name, whatsapp, status, subscription_plan, subscription_expires, id]
     );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Tenant não encontrado' });
+    }
     
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Erro ao atualizar tenant:', error);
-    res.status(500).json({ error: 'Erro ao atualizar tenant' });
+    res.status(500).json({ error: 'Erro ao atualizar tenant', details: error.message });
   }
 });
+
+// Deletar tenant
+app.delete('/api/admin/tenants/:id', async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const result = await pool.query('DELETE FROM tenants WHERE id = $1 RETURNING id', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Tenant não encontrado' });
+    }
+    
+    res.json({ success: true, message: 'Tenant deletado com sucesso' });
+  } catch (error) {
+    console.error('Erro ao deletar tenant:', error);
+    res.status(500).json({ error: 'Erro ao deletar tenant', details: error.message });
+  }
+});
+
 
 // ==================== MERCADO PAGO ====================
 

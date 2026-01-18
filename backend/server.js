@@ -694,6 +694,41 @@ app.get('/api/check-db-data', async (req, res) => {
   }
 });
 
+// Debug: verificar admins
+app.get('/api/check-admins', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT a.id, a.usuario, a.tenant_id, t.nome as tenant_nome, a.criado_em
+      FROM admins a
+      LEFT JOIN tenants t ON t.id = a.tenant_id
+      ORDER BY a.id
+    `);
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Criar admin de teste (REMOVER EM PRODUÇÃO)
+app.post('/api/create-test-admin', async (req, res) => {
+  const { email, senha, tenant_id } = req.body;
+  
+  try {
+    const senhaHash = await bcrypt.hash(senha, 10);
+    
+    const result = await pool.query(
+      `INSERT INTO admins (usuario, senha_hash, tenant_id, criado_em) 
+       VALUES ($1, $2, $3, NOW()) 
+       ON CONFLICT (usuario) DO UPDATE SET senha_hash = $2
+       RETURNING id, usuario, tenant_id`,
+      [email, senhaHash, tenant_id || 1]
+    );
+    
+    res.json({ success: true, admin: result.rows[0] });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);

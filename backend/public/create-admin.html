@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Criar Admin</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 10px;
+      max-width: 500px;
+      width: 100%;
+    }
+    h1 { color: #333; margin-bottom: 20px; }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 15px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+    button:hover { background: #5568d3; }
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 5px;
+      display: none;
+    }
+    .success { 
+      background: #d4edda; 
+      color: #155724; 
+      border: 1px solid #c3e6cb;
+    }
+    .error { 
+      background: #f8d7da; 
+      color: #721c24; 
+      border: 1px solid #f5c6cb;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>👤 Criar Admin</h1>
+    
+    <label>Email/Usuário:</label>
+    <input type="email" id="email" value="viniciuspinelli@gmail.com" placeholder="seu@email.com">
+    
+    <label>Senha:</label>
+    <input type="password" id="senha" placeholder="Digite a senha">
+    
+    <label>Tenant ID:</label>
+    <select id="tenant_id">
+      <option value="1">1 - Skey</option>
+      <option value="2">2 - Time Teste 2</option>
+      <option value="3">3 - diadema</option>
+      <option value="5">5 - diademas</option>
+    </select>
+    
+    <button onclick="criarAdmin()">🚀 Criar Admin</button>
+    
+    <div id="result" class="result"></div>
+  </div>
+
+  <script>
+    async function criarAdmin() {
+      const email = document.getElementById('email').value;
+      const senha = document.getElementById('senha').value;
+      const tenant_id = document.getElementById('tenant_id').value;
+      
+      if (!email || !senha) {
+        alert('Preencha email e senha!');
+        return;
+      }
+      
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = 'Criando...';
+      
+      try {
+        const res = await fetch('/api/create-test-admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, senha, tenant_id })
+        });
+        
+        const data = await res.json();
+        const result = document.getElementById('result');
+        
+        if (res.ok) {
+          result.className = 'result success';
+          result.style.display = 'block';
+          result.innerHTML = `
+            ✅ Admin criado com sucesso!<br><br>
+            <strong>Email:</strong> ${email}<br>
+            <strong>Senha:</strong> ${senha}<br>
+            <strong>Tenant ID:</strong> ${tenant_id}<br><br>
+            <a href="/login.html">🔐 Ir para Login</a>
+          `;
+        } else {
+          throw new Error(data.error);
+        }
+        
+      } catch (error) {
+        const result = document.getElementById('result');
+        result.className = 'result error';
+        result.style.display = 'block';
+        result.textContent = '❌ Erro: ' + error.message;
+      }
+      
+      btn.disabled = false;
+      btn.textContent = '🚀 Criar Admin';
+    }
+  </script>
+</body>
+</html>

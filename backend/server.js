@@ -811,8 +811,7 @@ app.post('/api/registro', async (req, res) => {
   const { nome_time, nome_usuario, email, telefone, whatsapp, senha } = req.body;
   
   console.log('=== POST /api/registro ===');
-  console.log('Nome do Time:', nome_time);
-  console.log('Email:', email);
+  console.log('Body recebido:', req.body);
   
   if (!nome_time || !nome_usuario || !email || !senha) {
     return res.status(400).json({ erro: 'Campos obrigatórios: Nome do Time, Nome, Email e Senha' });
@@ -822,43 +821,53 @@ app.post('/api/registro', async (req, res) => {
     return res.status(400).json({ erro: 'Senha deve ter no mínimo 6 caracteres' });
   }
   
+  const client = await pool.connect();
+  
   try {
+    await client.query('BEGIN');
+    
     // Verificar se email já existe
-    const emailExiste = await pool.query(
+    console.log('Verificando se email existe...');
+    const emailExiste = await client.query(
       'SELECT id FROM admins WHERE usuario = $1',
       [email]
     );
     
     if (emailExiste.rows.length > 0) {
+      await client.query('ROLLBACK');
       return res.status(400).json({ erro: 'Este email já está cadastrado' });
     }
     
-    // Gerar subdomain a partir do nome do time
+    // Gerar subdomain
     const subdomain = nome_time.toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove acentos
-      .replace(/[^a-z0-9]/g, '-') // Substitui caracteres especiais por -
-      .replace(/-+/g, '-') // Remove - duplicados
-      .replace(/^-|-$/g, ''); // Remove - do início e fim
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
     
-    // 1. Criar tenant
-    const tenantResult = await pool.query(`
+    console.log('Criando tenant...');
+    const tenantResult = await client.query(`
       INSERT INTO tenants (nome, subdomain, whatsapp_number, status, plano)
       VALUES ($1, $2, $3, 'active', 'mensal')
       RETURNING id
     `, [nome_time, subdomain, whatsapp || '']);
     
     const tenantId = tenantResult.rows[0].id;
+    console.log('Tenant criado com ID:', tenantId);
     
-    // 2. Hash da senha
+    // Hash da senha
+    console.log('Gerando hash da senha...');
     const senhaHash = await bcrypt.hash(senha, 10);
     
-    // 3. Criar admin
-    await pool.query(`
+    // Criar admin COM status
+    console.log('Criando admin...');
+    await client.query(`
       INSERT INTO admins (tenant_id, usuario, senha_hash, status)
-      VALUES ($1, $2, $3, 'active')
-    `, [tenantId, email, senhaHash]);
+      VALUES ($1, $2, $3, $4)
+    `, [tenantId, email, senhaHash, 'active']);
     
-    console.log('✅ Conta criada com sucesso! Tenant ID:', tenantId);
+    await client.query('COMMIT');
+    console.log('✅ Conta criada com sucesso!');
     
     res.json({ 
       sucesso: true, 
@@ -867,16 +876,15 @@ app.post('/api/registro', async (req, res) => {
     });
     
   } catch (err) {
-    console.error('❌ Erro ao criar conta:', err);
+    await client.query('ROLLBACK');
+    console.error('❌ Erro detalhado:', err.message);
+    console.error('Stack:', err.stack);
     res.status(500).json({ 
-      erro: 'Erro ao criar conta. Tente novamente.' 
+      erro: 'Erro ao criar conta: ' + err.message
     });
+  } finally {
+    client.release();
   }
-});
-
-// Redirecionar /registro para /registro.html
-app.get('/registro', (req, res) => {
-  res.sendFile(__dirname + '/public/registro.html');
 });
 
 app.listen(PORT, () => {

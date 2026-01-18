@@ -222,24 +222,52 @@ app.use(express.static('public'));
 // ==================== ROTAS DE AUTENTICAÇÃO ====================
 
 // Login
+// Login
+// Login
 app.post('/login', async (req, res) => {
   const { usuario, senha } = req.body;
   
+  console.log('🔐 Tentativa de login:', { usuario });
+  
   try {
+    // Verificar se os campos foram enviados
+    if (!usuario || !senha) {
+      console.log('❌ Campos vazios');
+      return res.status(400).json({ 
+        sucesso: false,
+        erro: 'Email e senha são obrigatórios' 
+      });
+    }
+    
+    // Buscar admin no banco
     const result = await pool.query(
       'SELECT * FROM admins WHERE usuario = $1',
       [usuario]
     );
 
+    console.log('📊 Resultado da busca:', result.rowCount, 'registros');
+
     if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Usuário ou senha incorretos' });
+      console.log('❌ Usuário não encontrado');
+      return res.status(401).json({ 
+        sucesso: false,
+        erro: 'Usuário ou senha incorretos' 
+      });
     }
 
     const admin = result.rows[0];
+    console.log('👤 Admin encontrado:', { id: admin.id, tenant_id: admin.tenant_id });
+    
+    // Verificar senha
     const senhaValida = await bcrypt.compare(senha, admin.senha_hash);
+    console.log('🔑 Senha válida:', senhaValida);
 
     if (!senhaValida) {
-      return res.status(401).json({ error: 'Usuário ou senha incorretos' });
+      console.log('❌ Senha incorreta');
+      return res.status(401).json({ 
+        sucesso: false,
+        erro: 'Usuário ou senha incorretos' 
+      });
     }
 
     // Gerar token
@@ -251,16 +279,24 @@ app.post('/login', async (req, res) => {
       [token, admin.id, expiraEm]
     );
 
+    console.log('✅ Login bem-sucedido - Token:', token.substring(0, 10) + '...');
+
     res.json({ 
-      success: true, 
+      sucesso: true,   // ← PORTUGUÊS
       token,
       tenant_id: admin.tenant_id
     });
+    
   } catch (error) {
-    console.error('Erro no login:', error);
-    res.status(500).json({ error: 'Erro no servidor' });
+    console.error('💥 Erro no login:', error);
+    res.status(500).json({ 
+      sucesso: false,   // ← PORTUGUÊS
+      erro: 'Erro no servidor: ' + error.message 
+    });
   }
 });
+
+
 
 // Verificar token
 app.get('/verificar-token', async (req, res) => {

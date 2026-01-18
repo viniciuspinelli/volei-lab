@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pagamento Não Processado - VoleiLab</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .failure-container {
+            text-align: center;
+            padding: 50px 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .failure-icon {
+            font-size: 80px;
+            color: #ff6b6b;
+            margin-bottom: 20px;
+        }
+        .btn-retry {
+            background: var(--primary-color);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px;
+        }
+        .btn-home {
+            background: #666;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="failure-container">
+        <div class="failure-icon">❌</div>
+        <h1>Pagamento Não Processado</h1>
+        <p>Não foi possível processar seu pagamento.</p>
+        
+        <div style="margin: 30px 0; color: #666;">
+            <p>Possíveis motivos:</p>
+            <ul style="text-align: left; display: inline-block;">
+                <li>Dados do cartão incorretos</li>
+                <li>Saldo insuficiente</li>
+                <li>Pagamento cancelado</li>
+            </ul>
+        </div>
+        
+        <a href="/payment.html" class="btn-retry">Tentar Novamente</a>
+        <a href="/" class="btn-home">Voltar ao Início</a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pagamento Aprovado - VoleiLab</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .success-container {
+            text-align: center;
+            padding: 50px 20px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .success-icon {
+            font-size: 80px;
+            color: #00a650;
+            margin-bottom: 20px;
+        }
+        .success-message {
+            font-size: 24px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .success-details {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 30px 0;
+        }
+        .btn-dashboard {
+            background: var(--primary-color);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="success-container">
+        <div class="success-icon">✅</div>
+        <h1 class="success-message">Pagamento Aprovado!</h1>
+        <p>Obrigado por assinar o VoleiLab</p>
+        
+        <div class="success-details" id="details">
+            <p>Aguarde enquanto confirmamos seu pagamento...</p>
+        </div>
+        
+        <a href="/" class="btn-dashboard">Ir para o Dashboard</a>
+    </div>
+
+    <script>
+        // Pegar parâmetros da URL
+        const params = new URLSearchParams(window.location.search);
+        const paymentId = params.get('payment_id');
+        const status = params.get('status');
+        
+        if (paymentId) {
+            document.getElementById('details').innerHTML = `
+                <p><strong>ID do Pagamento:</strong> ${paymentId}</p>
+                <p><strong>Status:</strong> ${status === 'approved' ? 'Aprovado' : 'Processando'}</p>
+                <p>Seu acesso ao sistema foi liberado!</p>
+            `;
+        }
+    </script>
+</body>
+</html>

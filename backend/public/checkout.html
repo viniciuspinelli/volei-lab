@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assinar Plano - Volei Lab</title>
+    <script src="https://sdk.mercadopago.com/js/v2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container { max-width: 900px; width: 100%; }
+        h1 { font-size: 32px; text-align: center; margin-bottom: 40px; }
+        .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .plan-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .plan-card:hover { border-color: #ff6b00; transform: translateY(-5px); }
+        .plan-card.popular { border-color: #ff6b00; background: rgba(255, 107, 0, 0.1); }
+        .plan-badge { 
+            background: #ff6b00; 
+            color: #000; 
+            padding: 4px 12px; 
+            border-radius: 20px; 
+            font-size: 12px; 
+            font-weight: 700; 
+            display: inline-block;
+            margin-bottom: 15px;
+        }
+        .plan-name { font-size: 24px; font-weight: 700; margin-bottom: 10px; }
+        .plan-price { font-size: 48px; font-weight: 700; color: #ff6b00; margin: 20px 0; }
+        .plan-price small { font-size: 16px; color: #999; }
+        .plan-economy { color: #34d399; font-size: 14px; margin-bottom: 20px; }
+        .plan-features { list-style: none; margin: 20px 0; text-align: left; }
+        .plan-features li { padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        .plan-features li:before { content: "✓ "; color: #ff6b00; font-weight: bold; }
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+        .btn-primary { background: linear-gradient(135deg, #ff6b00, #cc5500); color: #000; }
+        .btn-primary:hover { transform: scale(1.05); }
+        .loading { display: none; text-align: center; padding: 20px; }
+        .loading.active { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏐 Escolha seu Plano</h1>
+        
+        <div class="plans">
+            <!-- Plano Mensal -->
+            <div class="plan-card" onclick="selecionarPlano('mensal')">
+                <div class="plan-name">Mensal</div>
+                <div class="plan-price">
+                    R$ 29,90
+                    <small>/mês</small>
+                </div>
+                <ul class="plan-features">
+                    <li>Confirmações ilimitadas</li>
+                    <li>Sorteio de times</li>
+                    <li>Estatísticas completas</li>
+                    <li>Dashboard avançado</li>
+                    <li>Suporte prioritário</li>
+                </ul>
+                <button class="btn btn-primary">Assinar Agora</button>
+            </div>
+
+            <!-- Plano Trimestral -->
+            <div class="plan-card popular" onclick="selecionarPlano('trimestral')">
+                <span class="plan-badge">MAIS POPULAR</span>
+                <div class="plan-name">Trimestral</div>
+                <div class="plan-price">
+                    R$ 79,90
+                    <small>/3 meses</small>
+                </div>
+                <div class="plan-economy">💰 Economize R$ 9,80</div>
+                <ul class="plan-features">
+                    <li>Tudo do plano Mensal</li>
+                    <li>3 meses de acesso</li>
+                    <li>Desconto de 11%</li>
+                    <li>Suporte VIP</li>
+                </ul>
+                <button class="btn btn-primary">Assinar Agora</button>
+            </div>
+
+            <!-- Plano Anual -->
+            <div class="plan-card" onclick="selecionarPlano('anual')">
+                <span class="plan-badge">MELHOR CUSTO</span>
+                <div class="plan-name">Anual</div>
+                <div class="plan-price">
+                    R$ 299,90
+                    <small>/ano</small>
+                </div>
+                <div class="plan-economy">💰 Economize R$ 58,90 (17%)</div>
+                <ul class="plan-features">
+                    <li>Tudo do plano Mensal</li>
+                    <li>12 meses de acesso</li>
+                    <li>Melhor custo-benefício</li>
+                    <li>Suporte prioritário VIP</li>
+                </ul>
+                <button class="btn btn-primary">Assinar Agora</button>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">
+            <p>Processando pagamento...</p>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('adminToken');
+        
+        if (!token) {
+            alert('Faça login para assinar');
+            window.location.href = '/login.html';
+        }
+
+        async function selecionarPlano(plano) {
+            document.getElementById('loading').classList.add('active');
+            
+            try {
+                const response = await fetch('/api/payment/create-preference', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ plano })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Erro ao criar pagamento');
+                }
+                
+                const data = await response.json();
+                
+                // Redirecionar para checkout do Mercado Pago
+                window.location.href = data.init_point;
+                
+            } catch (err) {
+                console.error('Erro:', err);
+                alert('Erro ao processar pagamento. Tente novamente.');
+                document.getElementById('loading').classList.remove('active');
+            }
+        }
+    </script>
+</body>
+</html>

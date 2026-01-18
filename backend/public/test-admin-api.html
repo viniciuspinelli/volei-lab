@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Admin API</title>
+  <style>
+    body { 
+      font-family: monospace; 
+      background: #111; 
+      color: #0f0; 
+      padding: 20px; 
+      line-height: 1.5;
+    }
+    pre { 
+      background: #222; 
+      padding: 15px; 
+      border-radius: 5px; 
+      white-space: pre-wrap; 
+    }
+    button { 
+      background: #0f0; 
+      color: #000; 
+      border: none; 
+      padding: 10px 20px; 
+      cursor: pointer; 
+      margin: 5px;
+    }
+    button:disabled { 
+      background: #666; 
+      cursor: not-allowed; 
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Test Admin API</h1>
+  
+  <button onclick="testGET()">1️⃣ Test GET /api/admin/tenants</button>
+  <button onclick="testAuth()">2️⃣ Test Autenticação</button>
+  
+  <h3>Resultado:</h3>
+  <pre id="resultado"></pre>
+
+  <script>
+    const TOKEN = localStorage.getItem('adminToken') || '';
+    
+    async function testGET() {
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = 'Testando...';
+      
+      try {
+        const response = await fetch('/api/admin/tenants', {
+          headers: {
+            'Authorization': `Bearer ${TOKEN}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const status = response.status;
+        let data = '';
+        
+        if (response.ok) {
+          data = await response.json();
+        } else {
+          const text = await response.text();
+          data = `Erro ${status}: ${text}`;
+        }
+        
+        document.getElementById('resultado').textContent = 
+          `Status: ${status}\n\nResponse:\n${JSON.stringify(data, null, 2)}`;
+          
+      } catch (error) {
+        document.getElementById('resultado').textContent = `Erro de rede: ${error.message}`;
+      }
+      
+      btn.disabled = false;
+      btn.textContent = '1️⃣ Test GET /api/admin/tenants';
+    }
+    
+    async function testAuth() {
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = 'Testando...';
+      
+      try {
+        const response = await fetch('/verificar-token', {
+          headers: { 'Authorization': `Bearer ${TOKEN}` }
+        });
+        const data = await response.json();
+        
+        document.getElementById('resultado').textContent = 
+          `Token válido: ${data.valid}\nTenant ID: ${data.tenant_id || 'N/A'}\n\nToken atual: ${TOKEN}`;
+          
+      } catch (error) {
+        document.getElementById('resultado').textContent = `Erro: ${error.message}`;
+      }
+      
+      btn.disabled = false;
+      btn.textContent = '2️⃣ Test Autenticação';
+    }
+  </script>
+</body>
+</html>

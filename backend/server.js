@@ -299,11 +299,15 @@ app.post('/login', async (req, res) => {
 
 
 // Verificar token
+// Verificar token
 app.get('/verificar-token', async (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
   
+  console.log('🔍 Verificando token:', token ? token.substring(0, 10) + '...' : 'não enviado');
+  
   if (!token) {
-    return res.status(401).json({ valid: false });
+    console.log('❌ Token não fornecido');
+    return res.status(401).json({ valido: false });
   }
 
   try {
@@ -314,20 +318,26 @@ app.get('/verificar-token', async (req, res) => {
       WHERE t.token = $1 AND t.expira_em > NOW()
     `, [token]);
 
+    console.log('📊 Tokens encontrados:', result.rowCount);
+
     if (result.rows.length === 0) {
-      return res.status(401).json({ valid: false });
+      console.log('❌ Token inválido ou expirado');
+      return res.status(401).json({ valido: false });
     }
 
+    console.log('✅ Token válido para tenant:', result.rows[0].tenant_id);
+
     res.json({ 
-      valid: true,
+      valido: true,
       tenant_id: result.rows[0].tenant_id,
       usuario: result.rows[0].usuario
     });
   } catch (error) {
-    console.error('Erro ao verificar token:', error);
-    res.status(500).json({ error: 'Erro no servidor' });
+    console.error('💥 Erro ao verificar token:', error);
+    res.status(500).json({ valido: false, erro: error.message });
   }
 });
+
 
 // Logout
 app.post('/logout', async (req, res) => {

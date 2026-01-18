@@ -94,6 +94,8 @@ async function extrairTenantId(req, res, next) {
   if (req.path.startsWith('/api/admin') || 
       req.path === '/admin-panel.html' ||
       req.path === '/login' ||
+      req.path === '/login.html' ||
+      req.path === '/registro' ||
       req.path === '/logout' ||
       req.path === '/verificar-token') {
     return next();
@@ -137,176 +139,144 @@ async function extrairTenantId(req, res, next) {
 
 // ==================== MIDDLEWARE: VERIFICAR STATUS DO TENANT ====================
 async function verificarStatusTenant(req, res, next) {
-  // Pular verificação para rotas admin e arquivos estáticos
-  if (req.path.startsWith('/api/admin') || 
-      req.path === '/admin-panel.html' || 
-      req.path === '/test-update.html' ||
+  // Pular verificação para rotas admin, API e arquivos estáticos
+  if (req.path.startsWith('/api/') || 
+      req.path.startsWith('/admin-panel') ||
+      req.path === '/login' ||
+      req.path === '/login.html' ||
+      req.path === '/registro' ||
+      req.path === '/verificar-token' ||
       req.path.match(/\.(css|js|jpg|png|gif|ico)$/)) {
     return next();
   }
   
-  // Se não tem tenant_id, deixar passar
-  if (!req.tenantId) {
-    return next();
+  // Verificar apenas para páginas HTML (index.html, estatisticas.html, etc)
+  if (req.path.match(/\.(html)$/) || req.path === '/') {
+    if (!req.tenantId) {
+      return next();
+    }
+    
+    try {
+      const result = await pool.query(
+        'SELECT status FROM tenants WHERE id = $1',
+        [req.tenantId]
+      );
+      
+      if (result.rows.length === 0) {
+        return res.status(404).send(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <title>Time não encontrado</title>
+            <style>
+              body {
+                font-family: sans-serif;
+                background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+                color: #fff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                margin: 0;
+                padding: 20px;
+              }
+              .container { text-align: center; max-width: 500px; }
+              h1 { font-size: 72px; margin-bottom: 20px; color: #ff6b00; }
+              h2 { font-size: 28px; margin-bottom: 16px; }
+              p { color: #999; font-size: 16px; line-height: 1.6; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>❌</h1>
+              <h2>Time não encontrado</h2>
+              <p>O time que você está tentando acessar não existe ou foi removido.</p>
+            </div>
+          </body>
+          </html>
+        `);
+      }
+      
+      const tenant = result.rows[0];
+      
+      if (tenant.status === 'inactive') {
+        return res.status(403).send(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <title>Acesso Bloqueado</title>
+            <style>
+              body {
+                font-family: sans-serif;
+                background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+                color: #fff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                margin: 0;
+                padding: 20px;
+              }
+              .container { text-align: center; max-width: 500px; }
+              h1 { font-size: 72px; margin-bottom: 20px; color: #ef4444; }
+              h2 { font-size: 28px; margin-bottom: 16px; }
+              p { color: #999; font-size: 16px; line-height: 1.6; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>🔒</h1>
+              <h2>Acesso Bloqueado</h2>
+              <p>Este time está desativado.</p>
+            </div>
+          </body>
+          </html>
+        `);
+      }
+      
+      if (tenant.status === 'pending') {
+        return res.status(402).send(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <title>Pagamento Pendente</title>
+            <style>
+              body {
+                font-family: sans-serif;
+                background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+                color: #fff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                margin: 0;
+                padding: 20px;
+              }
+              .container { text-align: center; max-width: 500px; }
+              h1 { font-size: 72px; margin-bottom: 20px; color: #fbbf24; }
+              h2 { font-size: 28px; margin-bottom: 16px; }
+              p { color: #999; font-size: 16px; line-height: 1.6; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>⏳</h1>
+              <h2>Pagamento Pendente</h2>
+              <p>Aguardando confirmação de pagamento.</p>
+            </div>
+          </body>
+          </html>
+        `);
+      }
+    } catch (err) {
+      console.error('Erro ao verificar status do tenant:', err);
+    }
   }
   
-  try {
-    const result = await pool.query(
-      'SELECT status FROM tenants WHERE id = $1',
-      [req.tenantId]
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>Time não encontrado</title>
-          <style>
-            body {
-              font-family: 'Inter', sans-serif;
-              background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-              color: #fff;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              min-height: 100vh;
-              margin: 0;
-              padding: 20px;
-            }
-            .container { text-align: center; max-width: 500px; }
-            h1 { font-size: 72px; margin-bottom: 20px; color: #ff6b00; }
-            h2 { font-size: 28px; margin-bottom: 16px; }
-            p { color: #999; font-size: 16px; line-height: 1.6; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h1>❌</h1>
-            <h2>Time não encontrado</h2>
-            <p>O time que você está tentando acessar não existe ou foi removido.</p>
-          </div>
-        </body>
-        </html>
-      `);
-    }
-    
-    const tenant = result.rows[0];
-    
-    // Verificar se está inativo
-    if (tenant.status === 'inactive') {
-      return res.status(403).send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>Acesso Bloqueado</title>
-          <style>
-            body {
-              font-family: 'Inter', sans-serif;
-              background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-              color: #fff;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              min-height: 100vh;
-              margin: 0;
-              padding: 20px;
-            }
-            .container { text-align: center; max-width: 500px; }
-            h1 { font-size: 72px; margin-bottom: 20px; color: #ef4444; }
-            h2 { font-size: 28px; margin-bottom: 16px; }
-            p { color: #999; font-size: 16px; line-height: 1.6; margin-bottom: 12px; }
-            .contact {
-              margin-top: 24px;
-              padding: 16px;
-              background: rgba(255,107,0,0.1);
-              border: 1px solid rgba(255,107,0,0.3);
-              border-radius: 12px;
-            }
-            .contact a {
-              color: #ff6b00;
-              text-decoration: none;
-              font-weight: 600;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h1>🔒</h1>
-            <h2>Acesso Bloqueado</h2>
-            <p>Este time está com o acesso desativado.</p>
-            <p>Entre em contato com o suporte para reativar.</p>
-            <div class="contact">
-              <p>📧 Suporte: <a href="mailto:suporte@voleilab.com">suporte@voleilab.com</a></p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `);
-    }
-    
-    // Verificar se está pendente
-    if (tenant.status === 'pending') {
-      return res.status(402).send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="UTF-8">
-          <title>Pagamento Pendente</title>
-          <style>
-            body {
-              font-family: 'Inter', sans-serif;
-              background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-              color: #fff;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              min-height: 100vh;
-              margin: 0;
-              padding: 20px;
-            }
-            .container { text-align: center; max-width: 500px; }
-            h1 { font-size: 72px; margin-bottom: 20px; color: #fbbf24; }
-            h2 { font-size: 28px; margin-bottom: 16px; }
-            p { color: #999; font-size: 16px; line-height: 1.6; margin-bottom: 12px; }
-            .contact {
-              margin-top: 24px;
-              padding: 16px;
-              background: rgba(251,191,36,0.1);
-              border: 1px solid rgba(251,191,36,0.3);
-              border-radius: 12px;
-            }
-            .contact a {
-              color: #fbbf24;
-              text-decoration: none;
-              font-weight: 600;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h1>⏳</h1>
-            <h2>Pagamento Pendente</h2>
-            <p>Seu time está aguardando confirmação de pagamento.</p>
-            <p>Complete o pagamento para liberar o acesso.</p>
-            <div class="contact">
-              <p>💳 Financeiro: <a href="mailto:financeiro@voleilab.com">financeiro@voleilab.com</a></p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `);
-    }
-    
-    // Status 'active' - permitir acesso
-    next();
-    
-  } catch (err) {
-    console.error('Erro ao verificar status do tenant:', err);
-    next(); // Em caso de erro, permitir acesso (fail-safe)
-  }
+  next();
 }
 
 // ==================== MIDDLEWARE: Verificar token admin ====================
@@ -720,16 +690,43 @@ app.delete('/estatisticas/pessoa/:nome', verificarAdmin, async (req, res) => {
 app.post('/login', async (req, res) => {
   const { usuario, senha } = req.body;
   try {
-    const result = await pool.query(
-      'SELECT a.*, a.tenant_id FROM admins a WHERE usuario = $1',
-      [usuario]
-    );
+    const result = await pool.query(`
+      SELECT a.*, a.tenant_id, t.status as tenant_status, t.nome as tenant_nome
+      FROM admins a
+      JOIN tenants t ON t.id = a.tenant_id
+      WHERE a.usuario = $1
+    `, [usuario]);
     
     if (result.rows.length === 0) {
       return res.status(401).json({ sucesso: false, erro: 'Usuário não encontrado' });
     }
     
     const admin = result.rows[0];
+    
+    // Verificar se admin está inativo
+    if (admin.status === 'inactive') {
+      return res.status(403).json({ 
+        sucesso: false, 
+        erro: 'Usuário desativado. Entre em contato com o suporte.' 
+      });
+    }
+    
+    // Verificar status do tenant
+    if (admin.tenant_status === 'inactive') {
+      return res.status(403).json({ 
+        sucesso: false, 
+        erro: 'Time desativado. Entre em contato com o suporte para reativar.' 
+      });
+    }
+    
+    if (admin.tenant_status === 'pending') {
+      return res.status(402).json({ 
+        sucesso: false, 
+        erro: 'Pagamento pendente. Complete o pagamento para liberar o acesso.' 
+      });
+    }
+    
+    // Verificar senha
     const senhaValida = await bcrypt.compare(senha, admin.senha_hash);
     if (!senhaValida) {
       return res.status(401).json({ sucesso: false, erro: 'Senha incorreta' });
@@ -742,7 +739,7 @@ app.post('/login', async (req, res) => {
       [token, admin.id, expiraEm]
     );
     
-    console.log('✅ Login realizado - Tenant ID:', admin.tenant_id);
+    console.log('✅ Login realizado - Tenant:', admin.tenant_nome, '- Status:', admin.tenant_status);
     
     res.json({ 
       sucesso: true, 

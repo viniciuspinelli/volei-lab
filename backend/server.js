@@ -155,6 +155,29 @@ async function verificarStatusTenant(req, res, next) {
       req.path === '/webhook/mercadopago' ||
       req.path.match(/\.(css|js|jpg|png|gif|ico)$/)) {
     return next();
+    if (!tenant || !tenant.status || tenant.status === 'pending' || tenant.status === 'trial') {
+  // Permitir acesso para trial ou pendente, mas mostrar aviso
+  return res.status(402).send(`
+    <!DOCTYPE html>
+    <html><head><meta charset="UTF-8"><title>Trial Ativo</title>
+    <style>body{font-family:sans-serif;background:linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%);color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;}
+    .container{text-align:center;max-width:500px;}
+    h1{font-size:72px;margin-bottom:20px;color:#fbbf24;}
+    h2{font-size:28px;margin-bottom:16px;}
+    p{color:#999;font-size:16px;line-height:1.6;}
+    .btn{background:#667eea;color:white;padding:15px 30px;text-decoration:none;border-radius:8px;display:inline-block;}
+    </style></head>
+    <body>
+      <div class="container">
+        <h1>⏳ Trial Ativo</h1>
+        <h2>Você tem 7 dias grátis!</h2>
+        <p>Seu time está ativo por tempo limitado. Assine para continuar usando.</p>
+        <a href="/payment.html?tenant=${req.tenantId}" class="btn">💳 Assinar Agora</a>
+      </div>
+    </body></html>
+  `);
+}
+
   }
 
   // Verificar apenas para páginas HTML
@@ -775,6 +798,38 @@ app.post('/api/create-test-admin', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Fix status dos tenants (TEMPORÁRIO)
+app.post('/api/fix-tenant-status', async (req, res) => {
+  try {
+    // 1. Definir status padrão para null/undefined
+    const fixados = await pool.query(`
+      UPDATE tenants 
+      SET status = COALESCE(status, 'pending'),
+          plano = COALESCE(plano, 'trial')
+      WHERE status IS NULL OR status = ''
+      RETURNING id, nome, status
+    `);
+    
+    // 2. Definir data_vencimento para trial de 7 dias
+    await pool.query(`
+      UPDATE tenants 
+      SET data_vencimento = NOW() + INTERVAL '7 days'
+      WHERE status = 'trial' AND (data_vencimento IS NULL OR data_vencimento < NOW())
+    `);
+    
+    const todos = await pool.query('SELECT id, nome, status, data_vencimento FROM tenants');
+    
+    res.json({
+      mensagem: 'Status corrigidos!',
+      fixados: fixados.rows.length,
+      todos: todos.rows
+    });
+  } catch (error) {
+    res.status(500).json({ erro: error.message });
+  }
+});
+
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);

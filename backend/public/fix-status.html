@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Fix Status Tenants</title>
+  <style>
+    body { 
+      font-family: monospace; 
+      background: #000; 
+      color: #0f0; 
+      padding: 20px; 
+    }
+    button { 
+      background: #0f0; 
+      color: #000; 
+      padding: 15px 30px; 
+      border: none; 
+      cursor: pointer; 
+    }
+    pre { 
+      background: #111; 
+      padding: 20px; 
+      white-space: pre-wrap; 
+    }
+  </style>
+</head>
+<body>
+  <h1>🔧 Corrigir Status dos Tenants</h1>
+  <button onclick="fixStatus()">Executar Correção</button>
+  <pre id="result">Aguardando...</pre>
+
+  <script>
+    async function fixStatus() {
+      try {
+        const res = await fetch('/api/fix-tenant-status', { method: 'POST' });
+        const data = await res.json();
+        document.getElementById('result').textContent = 
+          'Status corrigidos:\n\n' + JSON.stringify(data, null, 2);
+      } catch (error) {
+        document.getElementById('result').textContent = 'Erro: ' + error.message;
+      }
+    }
+  </script>
+</body>
+</html>

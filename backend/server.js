@@ -413,7 +413,7 @@ app.get('/estatisticas', async (req, res) => {
 app.get('/api/admin/tenants', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT id, name, email, status, subscription_plan, 
+      SELECT id, nome as name, email, whatsapp, status, subscription_plan, 
              subscription_expires, created_at,
              CASE 
                WHEN subscription_expires < NOW() AND status = 'active' THEN true
